@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BPCL Dealer Bill Generator</title>
+<style>
+  :root{
+    --ink:#1c2b1f;
+    --paper:#fbf8f2;
+    --line:#c9c2b2;
+    --accent:#0a5c36;
+    --accent2:#b5501f;
+    --panel:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:'Segoe UI',Arial,sans-serif; background:var(--paper); color:var(--ink);
+  }
+  header{
+    padding:20px 24px; border-bottom:3px solid var(--accent);
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  }
+  header h1{margin:0; font-size:1.25rem; letter-spacing:.03em;}
+  header p{margin:2px 0 0; font-size:.8rem; color:#555;}
+  .wrap{display:grid; grid-template-columns: 380px 1fr; gap:0; align-items:start;}
+  @media(max-width:900px){ .wrap{grid-template-columns:1fr;} }
+
+  .form-col{padding:20px; border-right:1px solid var(--line);}
+  .preview-col{padding:20px; overflow-x:auto;}
+
+  fieldset{border:1px solid var(--line); border-radius:6px; margin-bottom:14px; padding:10px 12px;}
+  legend{font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--accent); padding:0 6px;}
+  label{display:block; font-size:.72rem; color:#444; margin:8px 0 3px;}
+  input, select{
+    width:100%; padding:6px 8px; font-size:.85rem; border:1px solid var(--line); border-radius:4px; background:#fff;
+  }
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .item-block{border:1px dashed var(--line); border-radius:6px; padding:8px; margin-top:8px;}
+  .item-block h4{margin:0 0 4px; font-size:.75rem; color:var(--accent2);}
+  button{
+    margin-top:6px; padding:8px 14px; background:var(--accent); color:#fff; border:none; border-radius:5px;
+    font-size:.8rem; cursor:pointer;
+  }
+  button.secondary{background:var(--accent2);}
+  .note{font-size:.72rem; color:#666; line-height:1.4; background:#f1efe6; border-left:3px solid var(--accent2); padding:8px 10px; border-radius:4px; margin-top:10px;}
+  .note a{color:var(--accent);}
+
+  /* Printable invoice */
+  .sheet{
+    background:var(--panel); width:720px; max-width:100%; margin:0 auto; padding:26px 30px;
+    border:1px solid var(--line); font-size:.82rem; line-height:1.35;
+  }
+  .sheet .jurisdiction{font-size:.72rem; text-align:right;}
+  .sheet h2.title{text-align:center; margin:4px 0; font-size:1.05rem;}
+  .sheet .company{text-align:center; font-weight:700; font-size:.95rem; margin:2px 0;}
+  .sheet .sub{text-align:center; font-size:.78rem; margin:0;}
+  table.grid{width:100%; border-collapse:collapse; margin-top:8px;}
+  table.grid td, table.grid th{border:1px solid #999; padding:4px 6px; vertical-align:top; font-size:.78rem;}
+  table.grid th{background:#eef2ee;}
+  .bold{font-weight:700;}
+  .center{text-align:center;}
+  .right{text-align:right;}
+  .sig{height:50px;}
+  .amtline{margin-top:8px; display:flex; justify-content:space-between; align-items:flex-end;}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>. Bill Generator</h1>
+    <p>Fill vendor / certificate details on the left → preview & print the matching bill on the right.</p>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="form-col">
+
+    <fieldset>
+      <legend>Subject</legend>
+      <label>Select subject (chooses the correct bill format automatically)</label>
+      <select id="subject">
+        <option value="mpd">MPD Stamping Bill FY-2026-27 (Non-GST · SAC 996211)</option>
+        <option value="ev_electricity">EV Electricity Bill FY-2026-27 (GST Credit Memo · SAC 999799)</option>
+        <option value="ev_revenue">EV Revenue FY-2026-27 (GST Credit Memo · SAC 999799)</option>
+      </select>
+    </fieldset>
+
+    <fieldset>
+      <legend>Auto-fill Vendor Details</legend>
+      <label>GST Certificate (Form GST REG-06, PDF) — fills Name, Address, District, GSTIN, PAN</label>
+      <input type="file" id="gstCertInput" accept="application/pdf,image/*" onchange="handleGstCertUpload(event)">
+      <label>PAN Card (image or PDF, optional — used only if GSTIN above didn't fill PAN)</label>
+      <input type="file" id="panCardInput" accept="application/pdf,image/*" onchange="handlePanCardUpload(event)">
+      <div id="autofillStatus" style="margin-top:6px;font-size:.72rem;color:#888;">No documents scanned yet.</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Vendor Details</legend>
+      <label>Vendor Name</label><input id="vendorName" value="">
+      <label>Vendor Address</label><input id="vendorAddress" value="">
+      <label>District</label><input id="district" value="">
+      <div class="row2">
+        <div><label>Mobile No.</label><input id="mobile" value=""></div>
+        <div><label>Vendor Code</label><input id="vendorCode" value=""></div>
+      </div>
+      <label>Email Address</label><input id="email" value="">
+      <div class="row2">
+        <div><label>GSTIN No.</label><input id="gstin" value=""></div>
+        <div><label>PAN Card No.</label><input id="pan" value=""></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Bill Details</legend>
+      <div class="row2">
+        <div><label>P.O. No.</label><input id="poNo" value=""></div>
+        <div><label>Bill No.</label><input id="billNo" value="SSS 2026-27 / 01"></div>
+      </div>
+      <label>Bill Date</label><input id="billDate" type="date" value="2026-06-18">
+      <label>Financial Year (used in Subject line, e.g. 2026-27)</label><input id="fy" value="2026-27">
+    </fieldset>
+
+    <fieldset>
+      <legend>Auto-fill Item from Stamping Certificate</legend>
+      <label>MPD Stamping / Calibration Certificate (image or PDF, scanned OK) — fills Model/Make, Sr. No., Qty for every dispenser found in the file, starting at the row chosen below. Works whether one certificate covers one dispenser or several.</label>
+      <label>Fill into</label>
+      <select id="itemCertTarget">
+        <option value="auto">Auto (next available row, in order)</option>
+        <option value="1">Item 1 (overwrite)</option>
+        <option value="2">Item 2 (overwrite)</option>
+        <option value="3">Item 3 (overwrite)</option>
+      </select>
+      <input type="file" id="itemCertInput" accept="application/pdf,image/*" multiple onchange="handleItemCertUpload(event)">
+      <div id="itemAutofillStatus" style="margin-top:6px;font-size:.72rem;color:#888;">No certificates scanned yet.</div>
+    </fieldset>
+
+    <fieldset id="mpdFields">
+      <legend>Items — MPD Stamping (up to 3 dispensers)</legend>
+      <div class="item-block">
+        <h4>Item 1</h4>
+        <label>Model / Make</label><input class="i1" data-f="type" value="">
+        <label>Sr. No.</label><input class="i1" data-f="sr" value="">
+        <div class="row2">
+          <div><label>Qty (nozzles)</label><input class="i1" data-f="qty" value=""></div>
+          <div><label>Rate</label><input class="i1" data-f="rate" value=""></div>
+        </div>
+        <label>Paid By</label><input class="i1" data-f="paidby" value="">
+        <label>Amount</label><input class="i1" data-f="amount" value="">
+      </div>
+      <div class="item-block">
+        <h4>Item 2</h4>
+        <label>Model / Make</label><input class="i2" data-f="type" value="">
+        <label>Sr. No.</label><input class="i2" data-f="sr" value="">
+        <div class="row2">
+          <div><label>Qty (nozzles)</label><input class="i2" data-f="qty" value=""></div>
+          <div><label>Rate</label><input class="i2" data-f="rate" value=""></div>
+        </div>
+        <label>Paid By</label><input class="i2" data-f="paidby" value="">
+        <label>Amount</label><input class="i2" data-f="amount" value="">
+      </div>
+      <div class="item-block">
+        <h4>Item 3 (optional — leave amount blank to skip)</h4>
+        <label>Model / Make</label><input class="i3" data-f="type" value="">
+        <label>Sr. No.</label><input class="i3" data-f="sr" value="">
+        <div class="row2">
+          <div><label>Qty (nozzles)</label><input class="i3" data-f="qty" value=""></div>
+          <div><label>Rate</label><input class="i3" data-f="rate" value=""></div>
+        </div>
+        <label>Paid By</label><input class="i3" data-f="paidby" value="">
+        <label>Amount</label><input class="i3" data-f="amount" value="">
+      </div>
+    </fieldset>
+
+    <fieldset id="eveFields" style="display:none;">
+      <legend>Item — EV Electricity (GST)</legend>
+      <label>Description</label><input id="eveDesc" value="EV Charging - Electricity Consumption">
+      <div class="row2">
+        <div><label>Unit</label><input id="eveUnit" value="1"></div>
+        <div><label>Rate</label><input id="eveRate" value="10000"></div>
+      </div>
+      <label>Paid By</label><input id="evePaidBy" value="Online Paid">
+      <label>Amount (before GST)</label><input id="eveAmount" value="10000">
+    </fieldset>
+
+    <fieldset id="evvFields" style="display:none;">
+      <legend>Item — EV Revenue (GST)</legend>
+      <label>Description</label><input id="evvDesc" value="EV Charging Revenue">
+      <div class="row2">
+        <div><label>Unit</label><input id="evvUnit" value="1"></div>
+        <div><label>Rate</label><input id="evvRate" value="10000"></div>
+      </div>
+      <label>Paid By</label><input id="evvPaidBy" value="Online Paid">
+      <label>Amount (before GST)</label><input id="evvAmount" value="10000">
+    </fieldset>
+
+    <fieldset>
+      <legend>Excel Sheet — for chosen category</legend>
+      <label>Each category (MPD Stamping / EV Electricity / EV Revenue) gets its own matching Excel sheet. Download a blank template, fill it in Excel, then upload it here to auto-fill this form again — or export the currently filled data straight to Excel.</label>
+      <button type="button" onclick="downloadCategoryExcel(true)">Download Blank Excel Template</button>
+      <label style="margin-top:10px;">Upload Filled Excel Template (auto-fills the form)</label>
+      <input type="file" id="excelUploadInput" accept=".xlsx,.xls" onchange="handleExcelUpload(event)">
+      <button type="button" class="secondary" onclick="downloadCategoryExcel(false)">Download Filled Excel Sheet (Output)</button>
+      <div id="excelStatus" style="margin-top:6px;font-size:.72rem;color:#888;">No Excel sheet generated yet.</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Attachments (optional)</legend>
+      <label>Add PDFs or images (e.g. calibration certificate) to include after the bill</label>
+      <input type="file" id="attachInput" accept="application/pdf,image/*" multiple onchange="handleFiles(event)">
+      <div id="attachList" style="margin-top:6px;"><span style="color:#888;font-size:.75rem;">No files added yet.</span></div>
+    </fieldset>
+
+    <button onclick="render()">Generate / Refresh Preview</button>
+    <button class="secondary" onclick="window.print()">Print / Save as PDF</button>
+    <button id="combineBtn" class="secondary" onclick="downloadCombinedPDF()">Download Combined PDF</button>
+
+    <div class="note">
+      <b>About the certificate you attached:</b> the calibration certificate (page 2 of your PDF) is issued by the MP Legal Metrology office and is verifiable on the state government portal itself — printed right on the certificate:
+      <br><a href="https://mpedistrict.gov.in" target="_blank">mpedistrict.gov.in</a> (Lok Seva Prabandhan, MP) or <b>lokseva.gov.in</b>, using registration/receipt no. <b>RS/444/2914/190/2026</b>.
+      This tool doesn't fetch that portal automatically (it needs manual OTP/registration-no. lookup on the government site) — it just takes the numbers you already have from the certificate and drops them into whichever of your two bill formats fits, per the Subject you pick above.
+    </div>
+  </div>
+
+  <div class="preview-col">
+    <div class="sheet" id="sheet"></div>
+  </div>
+</div>
+
+<script>
+function num(v){ return parseFloat(v||0) || 0; }
+
+function fmt(n){ return n.toLocaleString('en-IN'); }
+
+const ones=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+const tens=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+function twoDigits(n){
+  if(n<20) return ones[n];
+  return tens[Math.floor(n/10)] + (n%10? ' '+ones[n%10]:'');
+}
+function threeDigits(n){
+  let s='';
+  if(n>=100){ s+= ones[Math.floor(n/100)]+' Hundred '; n=n%100; }
+  s+= twoDigits(n);
+  return s.trim();
+}
+function numberToWords(n){
+  n=Math.round(n);
+  if(n===0) return 'Zero';
+  let parts=[];
+  const crore=Math.floor(n/10000000); n%=10000000;
+  const lakh=Math.floor(n/100000); n%=100000;
+  const thousand=Math.floor(n/1000); n%=1000;
+  const rest=n;
+  if(crore) parts.push(threeDigits(crore)+' Crore');
+  if(lakh) parts.push(threeDigits(lakh)+' Lakh');
+  if(thousand) parts.push(threeDigits(thousand)+' Thousand');
+  if(rest) parts.push(threeDigits(rest));
+  return parts.join(' ').trim();
+}
+
+function fieldsOf(cls){
+  const obj={};
+  document.querySelectorAll('.'+cls).forEach(el=>obj[el.dataset.f]=el.value);
+  return obj;
+}
+
+function ddmmyyyy(iso){
+  if(!iso) return '';
+  const [y,m,d]=iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+document.getElementById('subject').addEventListener('change', e=>{
+  const val = e.target.value;
+  document.getElementById('mpdFields').style.display = val==='mpd' ? 'block':'none';
+  document.getElementById('eveFields').style.display = val==='ev_electricity' ? 'block':'none';
+  document.getElementById('evvFields').style.display = val==='ev_revenue' ? 'block':'none';
+  render();
+});
+
+function render(){
+  const subject = document.getElementById('subject').value;
+  const v = {
+    name: document.getElementById('vendorName').value,
+    addr: document.getElementById('vendorAddress').value,
+    district: document.getElementById('district').value,
+    mobile: document.getElementById('mobile').value,
+    email: document.getElementById('email').value,
+    code: document.getElementById('vendorCode').value,
+    gstin: document.getElementById('gstin').value,
+    pan: document.getElementById('pan').value,
+    poNo: document.getElementById('poNo').value,
+    billNo: document.getElementById('billNo').value,
+    billDate: ddmmyyyy(document.getElementById('billDate').value),
+    fy: document.getElementById('fy').value
+  };
+
+  const headerTitle = (subject==='ev_electricity' || subject==='ev_revenue') ? 'Credit Memo' : '.';
+  const subjectLine = subject==='mpd' ? 'MPD Stamping Bill FY-'+v.fy : (subject==='ev_electricity' ? 'EV Electricity Bill FY-'+v.fy : 'EV RevenueFY-'+v.fy);
+  const sacLine = subject==='mpd' ? '996211' : '999799';
+
+  let html = `
+    <div class="jurisdiction">Subject to jurisdiction</div>
+    <h2 class="title">${headerTitle}</h2>
+    <div class="company">INVOICE</div>
+    <div class="sub">B.P.C.L. Dealer</div>
+    <table class="grid">
+      <tr>
+        <td style="width:50%">
+          To,<br>M/S Bharat Petroleum Corporation Ltd.,<br>
+          Office Complex, 3rd Floor, Block A<br>
+          Gautam Nagar, Bhopal -462023 (MP)<br>
+          <b>GSTIN 23AAACB2902M1Z1</b>
+        </td>
+        <td>
+          <b>Vendor Name:</b> ${v.name}<br>
+          <b>Vendor Address:</b> ${v.addr}<br>
+          ${v.district}<br>
+          <b>Mobile No.:</b> ${v.mobile}<br>
+          <b>Email Address:</b> ${v.email}<br>
+          <b>Vendor Code:</b> ${v.code}
+        </td>
+      </tr>
+      <tr>
+        <td><b>P.O. No.:</b> ${v.poNo}</td>
+        <td><b>Bill No.:</b> ${v.billNo}<br><b>Bill Date:</b> ${v.billDate}</td>
+      </tr>
+      <tr>
+        <td><b>SUBJECT:</b> ${subjectLine}<br>
+            SAC code: ${sacLine}</td>
+        <td><b>GSTIN NO.:</b> ${v.gstin}<br><b>PAN CARD NO.:</b> ${v.pan}</td>
+      </tr>
+    </table>
+  `;
+
+  if(subject==='ev_electricity' || subject==='ev_revenue'){
+    const prefix = subject==='ev_electricity' ? 'eve' : 'evv';
+    const desc = document.getElementById(prefix+'Desc').value;
+    const unit = document.getElementById(prefix+'Unit').value;
+    const rate = num(document.getElementById(prefix+'Rate').value);
+    const paidBy = document.getElementById(prefix+'PaidBy').value;
+    const amount = num(document.getElementById(prefix+'Amount').value);
+    const cgst = amount*0.09, sgst = amount*0.09, gst = cgst+sgst, total = amount+gst;
+
+    html += `
+      <table class="grid">
+        <tr><th>Description Of Work</th><th>Unit</th><th>Rate</th><th>Paid By</th><th>Amount</th></tr>
+        <tr><td>${desc}</td><td>${unit}</td><td>${fmt(rate)}</td><td>${paidBy}</td><td>${fmt(amount)}</td></tr>
+        <tr><th>TAX INCLUSION</th><th>CGST</th><th>SGST</th><th>GST</th><th>TOTAL</th></tr>
+        <tr><td>9% CGST + 9% SGST</td><td>${fmt(cgst)}</td><td>${fmt(sgst)}</td><td>${fmt(gst)}</td><td>${fmt(total)}</td></tr>
+      </table>
+      <div class="amtline">
+        <div><b>Amount Rs. ${numberToWords(total)} only.</b></div>
+        <div class="right">SIGNATURE: SEAL/STAMP<div class="sig"></div></div>
+      </div>
+    `;
+  } else {
+    const items=[fieldsOf('i1'), fieldsOf('i2'), fieldsOf('i3')].filter(it=>num(it.amount)>0);
+    let rows='';
+    let total=0;
+    items.forEach((it,idx)=>{
+      total += num(it.amount);
+      rows += `<tr>
+        <td><i>MPD STAMPING FEE</i><br><i>${it.type}</i><br><i>SR NO. ${it.sr}</i></td>
+        <td>${it.qty}</td><td>${fmt(num(it.rate))}</td><td>${it.paidby}</td><td>${fmt(num(it.amount))}</td>
+      </tr>`;
+    });
+    html += `
+      <table class="grid">
+        <tr><th>Description Of Work</th><th>Qty.</th><th>Rate</th><th>Paid By</th><th>Amount</th></tr>
+        ${rows}
+        <tr><td colspan="4" class="right bold">Total</td><td class="bold">${fmt(total)}</td></tr>
+      </table>
+      <div class="amtline">
+        <div><b>Amount Rs. ${numberToWords(total)} only.</b></div>
+        <div class="right">SIGNATURE: SEAL/STAMP<div class="sig"></div></div>
+      </div>
+    `;
+  }
+
+  document.getElementById('sheet').innerHTML = html;
+}
+
+// ---- Attachments (extra PDFs / images) ----
+let attachedFiles = [];
+
+function handleFiles(e){
+  for(const f of e.target.files){ attachedFiles.push(f); }
+  e.target.value = ''; // allow re-adding same file later
+  renderAttachmentList();
+}
+
+function removeAttachment(idx){
+  attachedFiles.splice(idx,1);
+  renderAttachmentList();
+}
+
+function renderAttachmentList(){
+  const list = document.getElementById('attachList');
+  if(!attachedFiles.length){
+    list.innerHTML = '<span style="color:#888;font-size:.75rem;">No files added yet.</span>';
+    return;
+  }
+  list.innerHTML = attachedFiles.map((f,i)=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;font-size:.75rem;padding:3px 0;border-bottom:1px solid var(--line);">
+      <span>${f.name}</span>
+      <button style="margin:0;padding:2px 8px;font-size:.7rem;" class="secondary" onclick="removeAttachment(${i})">✕</button>
+    </div>`).join('');
+}
+
+async function downloadCombinedPDF(){
+  const btn = document.getElementById('combineBtn');
+  const originalText = btn.textContent;
+  btn.textContent = 'Building PDF...';
+  btn.disabled = true;
+  try{
+    render(); // make sure preview matches current form values
+
+    // 1. Snapshot the bill preview into its own PDF
+    const sheetEl = document.getElementById('sheet');
+    const canvas = await html2canvas(sheetEl, {scale:2, backgroundColor:'#ffffff'});
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const billPdf = new jsPDF({unit:'pt', format:'a4'});
+    const pageW = billPdf.internal.pageSize.getWidth();
+    const pageH = billPdf.internal.pageSize.getHeight();
+    const imgW = pageW - 40;
+    const imgH = canvas.height * (imgW / canvas.width);
+    billPdf.addImage(imgData, 'PNG', 20, 20, imgW, Math.min(imgH, pageH - 40));
+    const billBytes = billPdf.output('arraybuffer');
+
+    // 2. Merge with any attached PDFs / images using pdf-lib
+    const { PDFDocument } = PDFLib;
+    const mergedPdf = await PDFDocument.create();
+
+    const billDoc = await PDFDocument.load(billBytes);
+    const billPages = await mergedPdf.copyPages(billDoc, billDoc.getPageIndices());
+    billPages.forEach(p => mergedPdf.addPage(p));
+
+    for(const file of attachedFiles){
+      const bytes = await file.arrayBuffer();
+      if(file.type === 'application/pdf'){
+        const doc = await PDFDocument.load(bytes);
+        const pages = await mergedPdf.copyPages(doc, doc.getPageIndices());
+        pages.forEach(p => mergedPdf.addPage(p));
+      } else if(file.type.startsWith('image/')){
+        let img;
+        if(file.type === 'image/png'){
+          img = await mergedPdf.embedPng(bytes);
+        } else if(file.type === 'image/jpeg' || file.type === 'image/jpg'){
+          img = await mergedPdf.embedJpg(bytes);
+        } else {
+          console.warn('Unsupported image type, skipped:', file.name, file.type);
+          continue;
+        }
+        const page = mergedPdf.addPage([img.width, img.height]);
+        page.drawImage(img, {x:0, y:0, width:img.width, height:img.height});
+      }
+    }
+
+    const mergedBytes = await mergedPdf.save();
+    const blob = new Blob([mergedBytes], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeName = (document.getElementById('billNo').value || 'invoice').replace(/[\/\\?%*:|"<>]/g, '-');
+    a.download = safeName + '_combined.pdf';
+    a.click();
+    URL.revokeObjectURL(url);
+  }catch(err){
+    alert('Error building combined PDF: ' + err.message);
+    console.error(err);
+  }finally{
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+}
+
+// ---- Auto-fill from GST Certificate / PAN Card ----
+if(window['pdfjs-dist/build/pdf']){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+function setStatus(msg, isError){
+  const el = document.getElementById('autofillStatus');
+  el.textContent = msg;
+  el.style.color = isError ? '#b5501f' : '#0a5c36';
+}
+
+// Extracts text from a PDF (real text layer). Returns {text, pdf, pageCount}.
+async function extractPdfText(file){
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  let text = '';
+  for(let i=1;i<=pdf.numPages;i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(it=>it.str).join(' ') + '\n';
+  }
+  return {text, pdf};
+}
+
+// Renders page 1 of a PDF to a canvas, for OCR fallback on scanned certificates.
+async function renderPdfPageToCanvas(pdf, pageNum, scale){
+  const page = await pdf.getPage(pageNum || 1);
+  const viewport = page.getViewport({scale: scale || 2.5});
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width; canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+  await page.render({canvasContext: ctx, viewport}).promise;
+  return canvas;
+}
+
+async function ocrImageLike(source){
+  const { data } = await Tesseract.recognize(source, 'eng');
+  return data.text || '';
+}
+
+// Gets the best-effort text out of an uploaded file (PDF with text layer,
+// scanned PDF via OCR fallback, or a plain image via OCR).
+async function getTextFromFile(file){
+  if(file.type === 'application/pdf'){
+    const { text, pdf } = await extractPdfText(file);
+    if(text.replace(/\s+/g,'').length > 40){
+      return text; // real text layer, good enough
+    }
+    // Looks like a scanned PDF with no text layer — OCR page 1.
+    const canvas = await renderPdfPageToCanvas(pdf, 1, 2.5);
+    return await ocrImageLike(canvas);
+  } else if(file.type.startsWith('image/')){
+    return await ocrImageLike(file);
+  }
+  return '';
+}
+
+function escapeRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+
+// Builds a regex that tolerates whatever whitespace PDF extraction happens
+// to leave between the words of a label (including none at all).
+function labelRegex(label){
+  return escapeRegex(label).replace(/\s+/g,'\\s*');
+}
+
+function parseGstCertificateText(rawText){
+  const text = rawText.replace(/\s+/g,' ').trim();
+  const result = {};
+
+  const gstinMatch = text.match(/\b\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]\b/);
+  if(gstinMatch){
+    result.gstin = gstinMatch[0];
+    result.pan = result.gstin.slice(2,12);
+  }
+
+  const labels = [
+    'Legal Name',
+    'Trade Name, if any',
+    'Additional trade names, if any',
+    'Constitution of Business',
+    'Address of Principal Place of Business',
+    'Building No./Flat No.:',
+    'Road/Street:',
+    'Nearby Landmark:',
+    'City/Town/Village:',
+    'District:',
+    'State:',
+    'PIN Code:',
+    'Date of Liability',
+    'Period of Validity',
+    'Type of Registration',
+    'Particulars of Approving'
+  ];
+  const compiled = labels.map(l => ({label:l, re:new RegExp(labelRegex(l))}));
+
+  function valueAfter(label){
+    const target = compiled.find(c=>c.label===label);
+    const m = target.re.exec(text);
+    if(!m) return '';
+    let start = m.index + m[0].length;
+    let end = text.length;
+    compiled.forEach(c=>{
+      if(c.label===label) return;
+      const rest = text.slice(start);
+      const im = c.re.exec(rest);
+      if(im){
+        const absIdx = start + im.index;
+        if(absIdx < end) end = absIdx;
+      }
+    });
+    return text.slice(start,end)
+      .replace(/^[:\s]+/,'')
+      .replace(/\s*\b\d{1,2}\.\s*$/,'')
+      .trim();
+  }
+
+  result.legalName = valueAfter('Legal Name');
+  result.tradeName = valueAfter('Trade Name, if any');
+  result.building = valueAfter('Building No./Flat No.:');
+  result.road = valueAfter('Road/Street:');
+  result.landmark = valueAfter('Nearby Landmark:');
+  result.city = valueAfter('City/Town/Village:');
+  result.district = valueAfter('District:');
+  result.state = valueAfter('State:');
+  result.pin = valueAfter('PIN Code:');
+
+  return result;
+}
+
+function applyGstResult(r){
+  const filled = [];
+  const name = r.tradeName || r.legalName;
+  if(name){ document.getElementById('vendorName').value = name; filled.push('Vendor Name'); }
+
+  const addrParts = [r.building, r.road, r.landmark, r.city].filter(Boolean);
+  let addr = addrParts.join(', ');
+  if(r.pin) addr += (addr? ' - ' : '') + r.pin;
+  if(addr){ document.getElementById('vendorAddress').value = addr; filled.push('Vendor Address'); }
+
+  if(r.district){ document.getElementById('district').value = r.district; filled.push('District'); }
+  if(r.gstin){ document.getElementById('gstin').value = r.gstin; filled.push('GSTIN'); }
+  if(r.pan){ document.getElementById('pan').value = r.pan; filled.push('PAN'); }
+
+  return filled;
+}
+
+async function handleGstCertUpload(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  setStatus('Reading GST certificate…');
+  try{
+    const text = await getTextFromFile(file);
+    const parsed = parseGstCertificateText(text);
+    const filled = applyGstResult(parsed);
+    if(filled.length){
+      setStatus('Auto-filled from GST certificate: ' + filled.join(', ') + '. Please check the values before printing.');
+    } else {
+      setStatus('Could not confidently read the certificate — fields left as-is. Please fill manually.', true);
+    }
+    render();
+  }catch(err){
+    console.error(err);
+    setStatus('Error reading GST certificate: ' + err.message, true);
+  }
+}
+
+async function handlePanCardUpload(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const panField = document.getElementById('pan');
+  if(panField.value && panField.value.trim().length===10){
+    setStatus('PAN already filled from GST certificate — PAN card not needed, but scanning anyway for a cross-check.');
+  } else {
+    setStatus('Reading PAN card…');
+  }
+  try{
+    const text = await getTextFromFile(file);
+    const panMatch = text.replace(/\s+/g,'').match(/\b[A-Z]{5}[0-9]{4}[A-Z]\b/);
+    if(panMatch){
+      document.getElementById('pan').value = panMatch[0];
+      setStatus('PAN read from PAN card: ' + panMatch[0] + '. Please check the value before printing.');
+      render();
+    } else {
+      setStatus('Could not find a PAN number on that card — please enter it manually.', true);
+    }
+  }catch(err){
+    console.error(err);
+    setStatus('Error reading PAN card: ' + err.message, true);
+  }
+}
+
+// ---- Auto-fill Item Details from Stamping/Calibration Certificate ----
+function itemStatus(msg, isError){
+  const el = document.getElementById('itemAutofillStatus');
+  el.textContent = msg;
+  el.style.color = isError ? '#b5501f' : '#0a5c36';
+}
+
+function parseSingleItemBlock(text){
+  const result = {};
+  let m;
+  m = text.match(/Make\s*[:;.\-]?\s*([A-Za-z0-9 &.,'\-]+?)\s*(?=Model\s*No)/i);
+  if(m) result.make = m[1].replace(/[.,]+$/,'').trim();
+
+  m = text.match(/Model\s*No\.?\s*[:;.\-]?\s*([A-Za-z0-9\-]+)/i);
+  if(m) result.modelNo = m[1].replace(/[.,]+$/,'').trim();
+
+  m = text.match(/Machine\s*Sr\.?\s*No\.?\s*[:;.\-]?\s*([A-Za-z0-9]+)/i);
+  if(m) result.srNo = m[1].replace(/[.,]+$/,'').trim();
+
+  m = text.match(/No\.?\s*of\s*Nozzle\s*[:;.\-]?\s*(\d+)/i);
+  if(m) result.nozzles = m[1].trim();
+
+  return result;
+}
+
+// Splits certificate text into one chunk per "Make" occurrence, since a
+// single certificate can list several dispensers (rows) in one table.
+function splitIntoItemBlocks(text){
+  const re = /Make\s*[:;.\-]?/gi;
+  const indices = [];
+  let m;
+  while((m = re.exec(text))){ indices.push(m.index); }
+  if(indices.length === 0) return [text];
+  const blocks = [];
+  for(let i=0;i<indices.length;i++){
+    const start = indices[i];
+    const end = (i+1 < indices.length) ? indices[i+1] : text.length;
+    blocks.push(text.slice(start, end));
+  }
+  return blocks;
+}
+
+// Returns an array of item objects — one per dispenser found in the file's text.
+function parseCertificateItemText(rawText){
+  const text = rawText.replace(/\s+/g,' ').trim();
+  const blocks = splitIntoItemBlocks(text);
+  return blocks
+    .map(parseSingleItemBlock)
+    .filter(it => it.srNo || it.modelNo);
+}
+
+let certAutoFillIndex = 0; // tracks how many rows Auto mode has claimed this session
+
+function fillItemSlot(slotNum, parsed){
+  const cls = 'i'+slotNum;
+  const typeEl = document.querySelector('.'+cls+'[data-f="type"]');
+  const srEl = document.querySelector('.'+cls+'[data-f="sr"]');
+  const qtyEl = document.querySelector('.'+cls+'[data-f="qty"]');
+  if(parsed.make || parsed.modelNo){
+    typeEl.value = [parsed.make, parsed.modelNo ? 'ModelNo. '+parsed.modelNo : ''].filter(Boolean).join(' ');
+  }
+  if(parsed.srNo) srEl.value = parsed.srNo;
+  if(parsed.nozzles) qtyEl.value = parsed.nozzles;
+}
+
+async function handleItemCertUpload(e){
+  const files = Array.from(e.target.files || []);
+  if(!files.length) return;
+
+  // Item fields only exist on the MPD form — switch to it if needed.
+  const subjectSel = document.getElementById('subject');
+  if(subjectSel.value !== 'mpd'){
+    subjectSel.value = 'mpd';
+    subjectSel.dispatchEvent(new Event('change'));
+  }
+
+  const target = document.getElementById('itemCertTarget').value;
+  let startIdx = (target === 'auto') ? certAutoFillIndex : (parseInt(target,10) - 1);
+
+  const messages = [];
+  let idx = startIdx;
+  for(const file of files){
+    itemStatus(`Reading ${file.name}…`);
+    try{
+      const text = await getTextFromFile(file);
+      const items = parseCertificateItemText(text);
+      if(!items.length){
+        messages.push(`${file.name}: couldn't confidently read any Make/Sr. No. — fill manually.`);
+        continue;
+      }
+      for(const parsed of items){
+        if(idx > 2){
+          messages.push(`${file.name}: has more dispensers than the 3 rows available — remaining ones skipped.`);
+          break;
+        }
+        const slotNum = idx + 1;
+        fillItemSlot(slotNum, parsed);
+        messages.push(`${file.name}: filled Item ${slotNum} (${[parsed.make,parsed.modelNo,parsed.srNo].filter(Boolean).join(' / ')}). Please check Rate, Paid By and Amount.`);
+        idx++;
+      }
+    }catch(err){
+      console.error(err);
+      messages.push(`${file.name}: error reading certificate — ${err.message}`);
+    }
+  }
+  if(target === 'auto') certAutoFillIndex = Math.min(3, idx);
+
+  itemStatus(messages.join(' '), messages.some(m=>m.includes('error')||m.includes("couldn't")||m.includes('skipped')));
+  e.target.value = '';
+  render();
+}
+
+// ---- Excel (xlsx) template / auto-fill / export, per category ----
+
+// Ordered [Label, fieldId] pairs for each category. Item rows use the
+// special id pattern "iN_field" which maps onto the .iN[data-f="field"] inputs.
+function fieldsForCategory(subject){
+  const common = [
+    ['Vendor Name','vendorName'],
+    ['Vendor Address','vendorAddress'],
+    ['District','district'],
+    ['Mobile No.','mobile'],
+    ['Vendor Code','vendorCode'],
+    ['Email Address','email'],
+    ['GSTIN No.','gstin'],
+    ['PAN Card No.','pan'],
+    ['P.O. No.','poNo'],
+    ['Bill No.','billNo'],
+    ['Bill Date (YYYY-MM-DD)','billDate']
+  ];
+  if(subject==='mpd'){
+    return [...common, ['Financial Year','fy'],
+      ['Item 1 - Model/Make','i1_type'],['Item 1 - Sr. No.','i1_sr'],['Item 1 - Qty','i1_qty'],['Item 1 - Rate','i1_rate'],['Item 1 - Paid By','i1_paidby'],['Item 1 - Amount','i1_amount'],
+      ['Item 2 - Model/Make','i2_type'],['Item 2 - Sr. No.','i2_sr'],['Item 2 - Qty','i2_qty'],['Item 2 - Rate','i2_rate'],['Item 2 - Paid By','i2_paidby'],['Item 2 - Amount','i2_amount'],
+      ['Item 3 - Model/Make','i3_type'],['Item 3 - Sr. No.','i3_sr'],['Item 3 - Qty','i3_qty'],['Item 3 - Rate','i3_rate'],['Item 3 - Paid By','i3_paidby'],['Item 3 - Amount','i3_amount']
+    ];
+  } else if(subject==='ev_electricity'){
+    return [...common,
+      ['Description','eveDesc'],['Unit','eveUnit'],['Rate','eveRate'],['Paid By','evePaidBy'],['Amount (before GST)','eveAmount']
+    ];
+  } else { // ev_revenue
+    return [...common,
+      ['Description','evvDesc'],['Unit','evvUnit'],['Rate','evvRate'],['Paid By','evvPaidBy'],['Amount (before GST)','evvAmount']
+    ];
+  }
+}
+
+function categoryLabel(subject){
+  return subject==='mpd' ? 'MPD_Stamping' : (subject==='ev_electricity' ? 'EV_Electricity' : 'EV_Revenue');
+}
+
+function getFieldValue(id){
+  const m = id.match(/^i([123])_(.+)$/);
+  if(m){
+    const el = document.querySelector('.i'+m[1]+'[data-f="'+m[2]+'"]');
+    return el ? el.value : '';
+  }
+  const el = document.getElementById(id);
+  return el ? el.value : '';
+}
+
+function setFieldValue(id, val){
+  const m = id.match(/^i([123])_(.+)$/);
+  if(m){
+    const el = document.querySelector('.i'+m[1]+'[data-f="'+m[2]+'"]');
+    if(el) el.value = val;
+    return;
+  }
+  const el = document.getElementById(id);
+  if(el) el.value = val;
+}
+
+function excelStatus(msg, isError){
+  const el = document.getElementById('excelStatus');
+  el.textContent = msg;
+  el.style.color = isError ? '#b5501f' : '#0a5c36';
+}
+
+// blankTemplate=true -> empty Value column ready to fill in Excel and re-upload.
+// blankTemplate=false -> exports the form's current values as a filled output sheet.
+function downloadCategoryExcel(blankTemplate){
+  try{
+    const subject = document.getElementById('subject').value;
+    const fields = fieldsForCategory(subject);
+    const data = [['Field','Value']];
+    fields.forEach(([label,id])=>{
+      data.push([label, blankTemplate ? '' : getFieldValue(id)]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{wch:32},{wch:34}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, categoryLabel(subject).slice(0,31));
+    const filename = categoryLabel(subject) + (blankTemplate ? '_Template' : '_Filled') + '.xlsx';
+    XLSX.writeFile(wb, filename);
+    excelStatus(blankTemplate
+      ? `Blank template downloaded for ${categoryLabel(subject).replace(/_/g,' ')}. Fill the Value column in Excel and upload it above to auto-fill this form again.`
+      : `Filled sheet downloaded for ${categoryLabel(subject).replace(/_/g,' ')} with the current form data.`);
+  }catch(err){
+    console.error(err);
+    excelStatus('Error generating Excel sheet: ' + err.message, true);
+  }
+}
+
+async function handleExcelUpload(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  excelStatus('Reading ' + file.name + '…');
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1});
+
+    const map = {};
+    rows.slice(1).forEach(r=>{
+      if(r && r[0]!==undefined && r[0]!==''){
+        map[String(r[0]).trim()] = (r[1]!==undefined && r[1]!==null) ? String(r[1]) : '';
+      }
+    });
+
+    const subject = document.getElementById('subject').value;
+    const fields = fieldsForCategory(subject);
+    let filled = 0;
+    fields.forEach(([label,id])=>{
+      if(Object.prototype.hasOwnProperty.call(map, label)){
+        setFieldValue(id, map[label]);
+        filled++;
+      }
+    });
+
+    excelStatus(`Auto-filled ${filled} field(s) from ${file.name} into the ${categoryLabel(subject).replace(/_/g,' ')} form. Please review before printing.`);
+    render();
+  }catch(err){
+    console.error(err);
+    excelStatus('Error reading Excel file: ' + err.message, true);
+  } finally {
+    e.target.value = '';
+  }
+}
+
+render();
+</script>
+</body>
+</html>

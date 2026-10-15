@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- This site is hosted on Netlify. Anyone can build and deploy a site
+     like this one for free: https://netlify.new/?utm_campaign=loops&utm_source=ai-legible&utm_medium=owned&utm_content=comment&utm_id=8e266cd1-3076-4041-989a-8be6bb58f98c
+     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIAL</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="phone">
+  <div class="header">
+    <span class="logo">DIAL</span>
+    <div class="header-right">
+      <div class="tab-bar">
+        <div class="tab active" onclick="switchTab('dial')">DIAL</div>
+        <div class="tab" onclick="switchTab('contacts')">LIST</div>
+        <div class="tab" onclick="switchTab('folders')">FOLDERS</div>
+      </div>
+      <div class="status-dot"></div>
+    </div>
+  </div>
+
+  <div class="display">
+    <div class="display-label" id="displayLabel">Enter number</div>
+    <div class="display-number" id="display"><span class="cursor"></span></div>
+  </div>
+
+  <!-- DIAL VIEW -->
+  <div class="view active" id="view-dial">
+    <div class="folder-strip" id="dialStrip"></div>
+    <div id="quickDialBar"></div>
+    <div class="keypad">
+      <div class="key" onclick="pressKey('1')"><span class="key-digit">1</span><span class="key-letters">&nbsp;</span></div>
+      <div class="key" onclick="pressKey('2')"><span class="key-digit">2</span><span class="key-letters">ABC</span></div>
+      <div class="key" onclick="pressKey('3')"><span class="key-digit">3</span><span class="key-letters">DEF</span></div>
+      <div class="key" onclick="pressKey('4')"><span class="key-digit">4</span><span class="key-letters">GHI</span></div>
+      <div class="key" onclick="pressKey('5')"><span class="key-digit">5</span><span class="key-letters">JKL</span></div>
+      <div class="key" onclick="pressKey('6')"><span class="key-digit">6</span><span class="key-letters">MNO</span></div>
+      <div class="key" onclick="pressKey('7')"><span class="key-digit">7</span><span class="key-letters">PQRS</span></div>
+      <div class="key" onclick="pressKey('8')"><span class="key-digit">8</span><span class="key-letters">TUV</span></div>
+      <div class="key" onclick="pressKey('9')"><span class="key-digit">9</span><span class="key-letters">WXYZ</span></div>
+      <div class="key" onclick="pressKey('*')"><span class="key-digit">*</span><span class="key-letters">&nbsp;</span></div>
+      <div class="key" id="key0" onclick="pressKey('0')"><span class="key-digit">0</span><span class="key-letters">+</span></div>
+      <div class="key" onclick="pressKey('#')"><span class="key-digit">#</span><span class="key-letters">&nbsp;</span></div>
+    </div>
+    <div class="actions">
+      <div class="btn-secondary" onclick="clearAll()">⌫</div>
+      <a class="btn-call empty" id="callBtn" href="index.html#" onclick="makeCall(event)">📞</a>
+      <div class="btn-secondary" onclick="deleteLast()">✕</div>
+    </div>
+  </div>
+
+  <!-- CONTACTS VIEW -->
+  <div class="view" id="view-contacts">
+    <div class="folder-strip" id="filterStrip"></div>
+    <div class="contacts-list" id="contactsList"></div>
+    <div class="section-title">ADD CONTACT <span style="color:var(--accent);font-size:9px;" id="totalBadge"></span></div>
+    <input class="field" id="newName" placeholder="Name" />
+    <input class="field" id="newNum"  placeholder="Phone number" type="tel" />
+    <select class="field" id="newFolder"></select>
+    <div class="mbtn primary" onclick="addContact()" style="text-align:center;width:100%;">+ ADD</div>
+  </div>
+
+  <!-- FOLDERS VIEW -->
+  <div class="view" id="view-folders">
+    <!-- Import banner (shown when shared link is detected) -->
+    <div class="import-banner" id="importBanner">
+      <div class="import-banner-icon">📥</div>
+      <div style="flex:1;">
+        <div class="import-banner-title" id="importTitle">Shared folder received</div>
+        <div class="import-banner-sub" id="importSub">Tap to import contacts</div>
+        <div class="import-banner-actions">
+          <div class="mbtn blue" onclick="importSharedFolder()" style="padding:6px 12px;font-size:10px;">IMPORT</div>
+          <div class="mbtn" onclick="dismissImport()" style="padding:6px 12px;font-size:10px;">DISMISS</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">YOUR FOLDERS</div>
+    <div class="folders-grid" id="foldersGrid"></div>
+    <div class="section-title" style="margin-top:6px;">MOVE CONTACT TO FOLDER</div>
+    <select class="field" id="moveContact"></select>
+    <select class="field" id="moveTarget"></select>
+    <div class="mbtn primary" onclick="moveContactToFolder()" style="text-align:center;width:100%;">MOVE →</div>
+  </div>
+</div>
+
+<!-- MODAL: New Folder -->
+<div class="modal-overlay" id="folderModal">
+  <div class="modal">
+    <div class="modal-title">📁 NEW FOLDER</div>
+    <input class="field" id="folderName" placeholder="Folder name" maxlength="20" />
+    <div class="section-title" style="margin-bottom:8px;">ICON</div>
+    <div class="emoji-picker" id="emojiPicker"></div>
+    <div class="section-title" style="margin-bottom:8px;">COLOR</div>
+    <div class="color-picker" id="colorPicker"></div>
+    <div class="modal-btns">
+      <div class="mbtn" onclick="closeModal('folderModal')">CANCEL</div>
+      <div class="mbtn primary" onclick="saveFolder()">CREATE</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Share Folder -->
+<div class="modal-overlay" id="shareModal">
+  <div class="modal">
+    <div class="modal-title" id="shareModalTitle">🔗 SHARE FOLDER</div>
+
+    <div class="section-title" style="margin-bottom:6px;">SHAREABLE LINK</div>
+    <div class="share-link-box highlight" id="shareLinkBox">Generating…</div>
+
+    <!-- Visual fingerprint of folder data -->
+    <div class="share-visual" id="shareVisual"></div>
+
+    <div class="section-title" style="margin-bottom:8px;">SHARE VIA</div>
+    <div class="share-method-row">
+      <div class="share-method" onclick="shareVia('copy')">
+        <span class="sm-icon">📋</span><span class="sm-label">COPY</span>
+      </div>
+      <div class="share-method" onclick="shareVia('whatsapp')">
+        <span class="sm-icon">💬</span><span class="sm-label">WHATSAPP</span>
+      </div>
+      <div class="share-method" onclick="shareVia('sms')">
+        <span class="sm-icon">📱</span><span class="sm-label">SMS</span>
+      </div>
+      <div class="share-method" onclick="shareVia('native')">
+        <span class="sm-icon">↗️</span><span class="sm-label">MORE</span>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-bottom:8px;">IMPORT FROM LINK</div>
+    <input class="field" id="importLinkInput" placeholder="Paste a shared link here…" style="margin-bottom:8px;" />
+
+    <div class="modal-btns">
+      <div class="mbtn" onclick="closeModal('shareModal')">CLOSE</div>
+      <div class="mbtn blue" onclick="importFromInput()">IMPORT LINK</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Upload to Folder -->
+<div class="modal-overlay" id="uploadModal">
+  <div class="modal">
+    <div class="modal-title" id="uploadModalTitle">📤 UPLOAD TO FOLDER</div>
+
+    <!-- Source selector -->
+    <div class="upload-source-tabs">
+      <div class="src-tab active" onclick="setSrcTab('file',this)">📂 FILE</div>
+      <div class="src-tab" onclick="setSrcTab('contacts',this)">👥 CONTACT LIST</div>
+      <div class="src-tab" onclick="setSrcTab('export',this)">⬇️ EXPORT</div>
+    </div>
+
+    <!-- ── PANEL: File Upload ── -->
+    <div class="upload-panel active" id="panel-file">
+      <div class="upload-format-tabs">
+        <div class="fmt-tab active" onclick="setFmtTab('csv',this)">CSV</div>
+        <div class="fmt-tab" onclick="setFmtTab('vcf',this)">vCard</div>
+        <div class="fmt-tab" onclick="setFmtTab('json',this)">JSON</div>
+        <div class="fmt-tab" onclick="setFmtTab('txt',this)">TXT</div>
+      </div>
+      <div id="fmtHint" style="font-size:9px;color:var(--muted);margin-bottom:10px;letter-spacing:0.5px;line-height:1.7;"></div>
+      <div class="upload-zone" id="dropZone"
+        ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <input type="file" id="fileInput" accept=".csv,.vcf,.json,.txt,text/csv,text/vcard,application/json,text/plain"
+          onchange="handleFileSelect(event)" />
+        <span class="upload-zone-icon" id="dropIcon">📂</span>
+        <div class="upload-zone-label">Drop file here or <span style="color:var(--accent)">browse</span></div>
+        <div class="upload-zone-sub">CSV · vCard (.vcf) · JSON · TXT</div>
+      </div>
+      <div class="progress-bar" id="uploadProgress"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="file-preview" id="filePreview">
+        <div class="file-preview-header">
+          <span class="file-preview-icon" id="previewIcon">📄</span>
+          <span class="file-preview-name" id="previewName"></span>
+          <span class="file-preview-size" id="previewSize"></span>
+        </div>
+        <div class="file-preview-rows" id="previewRows"></div>
+        <div class="file-preview-list" id="previewList"></div>
+      </div>
+    </div>
+
+    <!-- ── PANEL: Contact List Picker ── -->
+    <div class="upload-panel" id="panel-contacts">
+      <input class="pick-search" id="pickSearch" placeholder="Search contacts…" oninput="renderPickList()" />
+      <div class="pick-actions-bar">
+        <span class="pick-sel-count" id="pickSelCount">0 selected</span>
+        <span class="pick-sel-all" onclick="toggleSelectAll()">SELECT ALL</span>
+      </div>
+      <div class="pick-list" id="pickList"></div>
+    </div>
+
+    <!-- ── PANEL: Export ── -->
+    <div class="upload-panel" id="panel-export">
+      <div style="font-size:10px;color:var(--muted);margin-bottom:12px;letter-spacing:0.5px;line-height:1.7;">
+        Download all contacts in this folder in your preferred format.
+      </div>
+      <div class="download-row" style="flex-direction:column;gap:8px;">
+        <div class="mbtn" onclick="downloadFolder('csv')" style="text-align:center;font-size:11px;">⬇️ Download as CSV</div>
+        <div class="mbtn" onclick="downloadFolder('vcf')" style="text-align:center;font-size:11px;">⬇️ Download as vCard (.vcf)</div>
+        <div class="mbtn" onclick="downloadFolder('json')" style="text-align:center;font-size:11px;">⬇️ Download as JSON</div>
+      </div>
+    </div>
+
+    <div class="modal-btns" style="margin-top:14px;">
+      <div class="mbtn" onclick="closeModal('uploadModal')">CANCEL</div>
+      <div class="mbtn primary" id="uploadConfirmBtn" onclick="confirmUpload()" style="display:none;">IMPORT FILE</div>
+      <div class="mbtn primary" id="pickConfirmBtn" onclick="confirmPickContacts()" style="display:none;">ADD SELECTED</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

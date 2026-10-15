@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>📊 Dashboard Hub</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d2e;
+    --surface2: #252840;
+    --border: #2e3250;
+    --accent: #6c63ff;
+    --accent2: #00d4aa;
+    --accent3: #ff6b6b;
+    --text: #e8eaf6;
+    --text2: #9095b8;
+    --green: #00d4aa;
+    --red: #ff6b6b;
+    --yellow: #ffd166;
+    --radius: 12px;
+    --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  .light {
+    --bg: #f0f2ff;
+    --surface: #ffffff;
+    --surface2: #e8eaf6;
+    --border: #c5c8e8;
+    --text: #1a1d2e;
+    --text2: #5a5f8a;
+    --shadow: 0 4px 24px rgba(108,99,255,0.1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; transition: background 0.3s, color 0.3s; }
+  
+  /* NAV */
+  nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 16px; height: 56px; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow); }
+  nav .logo { font-size: 1.2rem; font-weight: 700; color: var(--accent); margin-right: auto; cursor: pointer; }
+  nav a, nav button.nav-btn { color: var(--text2); text-decoration: none; font-size: 0.85rem; background: none; border: none; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: all 0.2s; }
+  nav a:hover, nav button.nav-btn:hover { color: var(--text); background: var(--surface2); }
+  .theme-btn { background: var(--surface2) !important; border: 1px solid var(--border) !important; color: var(--text) !important; font-size: 0.8rem !important; padding: 5px 12px !important; border-radius: 20px !important; }
+
+  /* PAGES */
+  .page { display: none; padding: 32px 24px; max-width: 1200px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* HOME */
+  .hero { text-align: center; padding: 60px 0 40px; }
+  .hero h1 { font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 12px; }
+  .hero p { color: var(--text2); font-size: 1.05rem; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin: 32px 0; }
+  .dash-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; cursor: pointer; transition: all 0.25s; position: relative; overflow: hidden; }
+  .dash-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .dash-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); border-color: var(--accent); }
+  .dash-card .icon { font-size: 2.5rem; margin-bottom: 12px; }
+  .dash-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
+  .dash-card p { color: var(--text2); font-size: 0.88rem; line-height: 1.5; }
+  .open-btn { display: inline-block; margin-top: 16px; background: var(--accent); color: #fff; border: none; padding: 8px 18px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-weight: 600; transition: opacity 0.2s; text-decoration: none; }
+  .open-btn:hover { opacity: 0.85; }
+  .guide-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-top: 16px; }
+  .guide-box h2 { font-size: 1rem; font-weight: 700; margin-bottom: 12px; color: var(--accent2); }
+  .guide-box pre { color: var(--text2); font-size: 0.83rem; line-height: 1.8; white-space: pre-wrap; font-family: inherit; }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; width: 90%; max-width: 440px; position: relative; }
+  .modal h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; }
+  .modal-close { position: absolute; top: 12px; right: 16px; background: none; border: none; color: var(--text2); font-size: 1.3rem; cursor: pointer; }
+  
+  /* TICK LIST */
+  .tick-input { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tick-input input { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 0.9rem; }
+  .tick-input input:focus { outline: none; border-color: var(--accent); }
+  .tick-list { list-style: none; max-height: 300px; overflow-y: auto; }
+  .tick-list li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; margin-bottom: 4px; }
+  .tick-list li:hover { background: var(--surface2); }
+  .tick-list li.done span { text-decoration: line-through; color: var(--text2); }
+  .tick-list li input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+  .tick-list li .del-btn { margin-left: auto; background: none; border: none; color: var(--red); cursor: pointer; font-size: 1rem; }
+
+  /* PROFILE MODAL */
+  .profile-form label { display: block; font-size: 0.83rem; color: var(--text2); margin-bottom: 4px; margin-top: 12px; }
+  .profile-form input { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 8px 12px; border-radius: 8px; font-size: 0.9rem; }
+  .profile-form input:focus { outline: none; border-color: var(--accent); }
+  .saved-msg { color: var(--green); font-size: 0.82rem; margin-top: 8px; display: none; }
+
+  /* BACK BAR */
+  .back-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+  .back-bar button { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+  .back-bar button:hover { border-color: var(--accent); color: var(--accent); }
+  .page-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 24px; }
+
+  /* SHARED DASHBOARD */
+  .section-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
+  .section-box h3 { font-size: 0.9rem; font-weight: 700; color: var(--text2); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 40px 20px; text-align: center; cursor: pointer; transition: border-color 0.2s; position: relative; }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(108,99,255,0.04); }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .upload-zone .uz-icon { font-size: 2.5rem; margin-bottom: 8px; }
+  .upload-zone p { color: var(--text2); font-size: 0.88rem; }
+  select.sheet-sel { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 7px 12px; border-radius: 8px; font-size: 0.88rem; cursor: pointer; }
+  select.sheet-sel:focus { outline: none; border-color: var(--accent); }
+  .btn { background: var(--accent); color: #fff; border: none; padding: 8px 18px; border-radius: 8px; font-size: 0.87rem; cursor: pointer; font-weight: 600; transition: opacity 0.2s; }
+  .btn:hover { opacity: 0.85; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); opacity: 1; }
+  .btn-green { background: var(--green); }
+  .btn-red { background: var(--red); }
+  .controls-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  
+  /* TABLE */
+  .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+  th { background: var(--surface2); color: var(--text2); padding: 10px 12px; text-align: left; font-weight: 600; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+  td.highlight-red { background: rgba(255,107,107,0.15); color: var(--red); font-weight: 600; }
+  td.highlight-yellow { background: rgba(255,209,102,0.15); color: var(--yellow); font-weight: 600; }
+  td.highlight-green { background: rgba(0,212,170,0.15); color: var(--green); font-weight: 600; }
+
+  /* COMPARE */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .compare-grid { grid-template-columns: 1fr; } }
+
+  /* PRESENTATION / CHARTS */
+  .chart-container { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
+  canvas { max-width: 100%; }
+
+  /* MAIL MERGE */
+  .step { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .step h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; color: var(--accent); }
+  .form-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .form-row label { font-size: 0.82rem; color: var(--text2); display: block; margin-bottom: 4px; }
+  .form-row input, .form-row select, .form-row textarea { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 7px 10px; border-radius: 8px; font-size: 0.85rem; font-family: inherit; }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline: none; border-color: var(--accent); }
+  .col-checkbox-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .col-checkbox-list label { display: flex; align-items: center; gap: 5px; font-size: 0.82rem; color: var(--text2); cursor: pointer; background: var(--surface2); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); }
+  .col-checkbox-list label:hover { border-color: var(--accent); }
+  .col-order-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; min-height: 40px; padding: 8px; border: 1px dashed var(--border); border-radius: 8px; }
+  .col-tag { background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; cursor: grab; display: flex; align-items: center; gap: 6px; }
+  .col-tag span { cursor: pointer; opacity: 0.7; }
+  .col-tag span:hover { opacity: 1; }
+
+  /* SPLITTER / MERGER */
+  .file-list { list-style: none; margin-top: 12px; }
+  .file-list li { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--surface2); border-radius: 8px; margin-bottom: 6px; font-size: 0.85rem; }
+  .file-list li .dl-btn { background: var(--accent); color: #fff; border: none; padding: 4px 12px; border-radius: 6px; font-size: 0.78rem; cursor: pointer; }
+
+  /* STATUS */
+  .status { font-size: 0.82rem; color: var(--text2); padding: 6px 0; }
+  .status.ok { color: var(--green); }
+  .status.err { color: var(--red); }
+
+  /* MERGE FIELD CHIPS */
+  .merge-chip { background: var(--surface2); border: 1px solid var(--accent); color: var(--accent); padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; cursor: pointer; font-family: monospace; transition: all 0.15s; }
+  .merge-chip:hover { background: var(--accent); color: #fff; }
+  /* IMAGE UPLOAD BOX */
+  .img-upload-box { border: 2px dashed var(--border); border-radius: 8px; padding: 12px 18px; cursor: pointer; display: flex; align-items: center; gap: 10px; min-width: 220px; min-height: 52px; transition: border-color 0.2s; background: var(--surface2); }
+  .img-upload-box:hover { border-color: var(--accent); }
+  .img-upload-box span { font-size: 0.8rem; color: var(--text2); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <span class="logo" onclick="showPage('home')">📊 Dashboard Hub</span>
+  <a href="#" onclick="showPage('home')">Home</a>
+  <button class="nav-btn" onclick="openTickList()">✔️ Tick List</button>
+  <a href="#" onclick="showPage('home');setTimeout(()=>document.getElementById('guide').scrollIntoView({behavior:'smooth'}),100)">Guide</a>
+  <button class="nav-btn" onclick="showPage('mailmerge')">Email Merge</button>
+  <button class="theme-btn nav-btn" onclick="toggleTheme()" id="themeBtn">🌙 Dark</button>
+</nav>
+
+<!-- TICK LIST MODAL -->
+<div class="modal-overlay" id="tickModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('tickModal')">×</button>
+    <h2>✔️ Tick List</h2>
+    <div class="tick-input">
+      <input type="text" id="tickInput" placeholder="Add a task..." onkeydown="if(event.key==='Enter')addTick()"/>
+      <button class="btn" onclick="addTick()">Add</button>
+    </div>
+    <ul class="tick-list" id="tickList"></ul>
+  </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal-overlay" id="profileModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('profileModal')">×</button>
+    <h2>👤 Update Profile</h2>
+    <div class="profile-form">
+      <label>Name</label><input type="text" id="pName" placeholder="Your name"/>
+      <label>Email</label><input type="email" id="pEmail" placeholder="your@email.com"/>
+      <label>Role</label><input type="text" id="pRole" placeholder="Your role"/>
+    </div>
+    <button class="btn" style="margin-top:16px" onclick="saveProfile()">Save</button>
+    <div class="saved-msg" id="savedMsg">✅ Saved successfully!</div>
+  </div>
+</div>
+
+<!-- ===================== HOME PAGE ===================== -->
+<div class="page active" id="page-home">
+  <div class="hero">
+    <h1>Welcome 🚀</h1>
+    <p>Access analytics, reports, and manage your files — all in one place.</p>
+  </div>
+  <div style="display:flex;gap:10px;justify-content:center;margin-bottom:32px;flex-wrap:wrap;">
+    <button class="btn btn-outline" onclick="openTickList()">✔️ Tick List</button>
+    <button class="btn btn-outline" onclick="openModal('profileModal')">👤 Update Profile</button>
+  </div>
+  <div class="card-grid">
+    <div class="dash-card" onclick="showPage('excel')">
+      <div class="icon">📊</div>
+      <h3>Excel-Like</h3>
+      <p>Dive into analytics and actionable insights from your Excel/CSV files.</p>
+      <button class="open-btn">Open Dashboard</button>
+    </div>
+    <div class="dash-card" onclick="showPage('stock')">
+      <div class="icon">📈</div>
+      <h3>Stock</h3>
+      <p>Explore stock data with filters for below 10% and between 10–30% ranges.</p>
+      <button class="open-btn">Open Dashboard</button>
+    </div>
+    <div class="dash-card" onclick="showPage('presentation')">
+      <div class="icon">📑</div>
+      <h3>Presentation</h3>
+      <p>Upload Excel/CSV files and view auto-colored charts and tables.</p>
+      <button class="open-btn">Open Dashboard</button>
+    </div>
+  </div>
+
+  <div class="card-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+    <div class="dash-card" onclick="showPage('splitter')" style="padding:20px;">
+      <div class="icon" style="font-size:1.8rem;">✂️</div>
+      <h3>File Splitter</h3>
+      <p style="font-size:0.82rem;">Split Excel sheets into separate files.</p>
+    </div>
+    <div class="dash-card" onclick="showPage('merger')" style="padding:20px;">
+      <div class="icon" style="font-size:1.8rem;">🔗</div>
+      <h3>Merge Excel Files</h3>
+      <p style="font-size:0.82rem;">Combine two Excel files into one.</p>
+    </div>
+    <div class="dash-card" onclick="showPage('mailmerge')" style="padding:20px;">
+      <div class="icon" style="font-size:1.8rem;">✉️</div>
+      <h3>Mail Merge</h3>
+      <p style="font-size:0.82rem;">Generate grouped documents from Excel data.</p>
+    </div>
+  </div>
+
+  <div class="guide-box" id="guide">
+    <h2>📂 Guide</h2>
+    <pre>Dashboard One (Excel-Like)
+  Click → Name column to see: SR No, Name, Address, Phone Number
+
+Dashboard Two (Stock)
+  Click → Between 10–30 → All entries in this share range appear
+
+Dashboard Three (Presentation)
+  Graph or comparative performance charts from your data</pre>
+  </div>
+</div>
+
+<!-- ===================== EXCEL DASHBOARD ===================== -->
+<div class="page" id="page-excel">
+  <div class="back-bar">
+    <button onclick="showPage('home')">⬅ Back</button>
+    <button onclick="showPage('presentation')">Presentation</button>
+    <button onclick="showPage('stock')">Stock</button>
+    <button onclick="showPage('splitter')">File Splitter</button>
+    <button onclick="showPage('mailmerge')">Mail Merge</button>
+    <button onclick="showPage('merger')">Merge Excel</button>
+  </div>
+  <div class="page-title">📊 Excel-like Dashboard</div>
+
+  <div class="section-box">
+    <div class="upload-zone" id="excelUploadZone">
+      <div class="uz-icon">📂</div>
+      <p>Drag & Drop Excel / CSV file here</p>
+      <p style="margin-top:4px;font-size:0.78rem;color:var(--text2)">or click to choose file</p>
+      <input type="file" accept=".xlsx,.xls,.csv" onchange="loadExcelFile(this,'excel')"/>
+    </div>
+  </div>
+
+  <div class="section-box" id="excelControls" style="display:none;">
+    <div class="controls-row">
+      <label style="font-size:0.85rem;color:var(--text2)">Choose sheet:</label>
+      <select class="sheet-sel" id="excelSheetSel" onchange="renderExcelSheet()"></select>
+      <button class="btn btn-outline" onclick="toggleExcelCompare()">🔀 Compare Sheets</button>
+      <button class="btn btn-green" onclick="downloadExcel('excel')">⬇ Download Excel</button>
+    </div>
+    <div id="excelCompareRow" style="display:none;gap:10px;align-items:center;flex-wrap:wrap;" class="controls-row">
+      <span style="font-size:0.85rem;color:var(--text2)">Compare with:</span>
+      <select class="sheet-sel" id="excelSheetSel2" onchange="renderExcelCompare()"></select>
+    </div>
+  </div>
+
+  <div id="excelTableWrap"></div>
+</div>
+
+<!-- ===================== STOCK DASHBOARD ===================== -->
+<div class="page" id="page-stock">
+  <div class="back-bar">
+    <button onclick="showPage('home')">⬅ Back</button>
+    <button onclick="showPage('presentation')">Presentation</button>
+    <button onclick="showPage('excel')">Excel Like</button>
+  </div>
+  <div class="page-title">📈 Stock Dashboard</div>
+
+  <div class="section-box">
+    <div class="upload-zone" id="stockUploadZone">
+      <div class="uz-icon">📂</div>
+      <p>Drag & Drop Excel / CSV file here</p>
+      <input type="file" accept=".xlsx,.xls,.csv" onchange="loadExcelFile(this,'stock')"/>
+    </div>
+  </div>
+
+  <div class="section-box" id="stockControls" style="display:none;">
+    <div class="controls-row">
+      <label style="font-size:0.85rem;color:var(--text2)">Choose sheet:</label>
+      <select class="sheet-sel" id="stockSheetSel" onchange="renderStockSheet()"></select>
+      <button class="btn btn-outline" onclick="toggleStockCompare()">🔀 Compare Sheets</button>
+      <button class="btn btn-green" onclick="downloadExcel('stock')">⬇ Download Excel</button>
+    </div>
+    <div id="stockCompareRow" style="display:none;gap:12px;align-items:center;flex-wrap:wrap;" class="controls-row">
+      <select class="sheet-sel" id="stockSheetSel2"></select>
+      <div>
+        <label style="font-size:0.82rem;color:var(--text2)">Below 10% Column:</label>
+        <select class="sheet-sel" id="stockBelowCol" onchange="renderStockSheet()"><option value="">-- Select --</option></select>
+      </div>
+      <div>
+        <label style="font-size:0.82rem;color:var(--text2)">10–30% Column:</label>
+        <select class="sheet-sel" id="stockBetweenCol" onchange="renderStockSheet()"><option value="">-- Select --</option></select>
+      </div>
+    </div>
+  </div>
+
+  <div id="stockTableWrap"></div>
+</div>
+
+<!-- ===================== PRESENTATION ===================== -->
+<div class="page" id="page-presentation">
+  <div class="back-bar">
+    <button onclick="showPage('home')">⬅ Back</button>
+    <button onclick="showPage('excel')">Excel Like</button>
+    <button onclick="showPage('stock')">Stock</button>
+  </div>
+  <div class="page-title">📑 Presentation Dashboard</div>
+
+  <div class="section-box">
+    <div class="upload-zone" id="presUploadZone">
+      <div class="uz-icon">📂</div>
+      <p>Drag & Drop Excel / CSV file here</p>
+      <input type="file" accept=".xlsx,.xls,.csv" onchange="loadExcelFile(this,'pres')"/>
+    </div>
+  </div>
+
+  <div class="section-box" id="presControls" style="display:none;">
+    <div class="controls-row">
+      <label style="font-size:0.85rem;color:var(--text2)">Sheet:</label>
+      <select class="sheet-sel" id="presSheetSel" onchange="renderPresSheet()"></select>
+      <label style="font-size:0.85rem;color:var(--text2)">Line Chart Row:</label>
+      <input type="number" id="lineChartRow" min="1" value="1" style="width:60px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:8px;" onchange="renderPresSheet()"/>
+      <label style="font-size:0.85rem;color:var(--text2)">Bar Chart Column:</label>
+      <input type="number" id="barChartCol" min="1" value="1" style="width:60px;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:8px;" onchange="renderPresSheet()"/>
+    </div>
+  </div>
+
+  <div id="presCharts"></div>
+  <div id="presTableWrap"></div>
+</div>
+
+<!-- ===================== MAIL MERGE ===================== -->
+<div class="page" id="page-mailmerge">
+  <div class="back-bar">
+    <button onclick="showPage('home')">⬅ Back</button>
+  </div>
+  <div class="page-title">✉️ Excel to Grouped Documents Generator</div>
+  <p style="color:var(--text2);font-size:0.9rem;margin-bottom:20px;">Upload your Excel or CSV file to start filtering and generating <code>.pdf</code> files. Each unique value in the <strong>Group Column</strong> will create a separate PDF output file.</p>
+
+  <div class="step">
+    <h3>Step 1: Upload Excel/CSV File</h3>
+    <div class="upload-zone" style="padding:24px 20px;">
+      <div class="uz-icon">📂</div>
+      <p>Choose File</p>
+      <input type="file" accept=".xlsx,.xls,.csv" onchange="loadMailMerge(this)"/>
+    </div>
+    <div class="status" id="mmStatus"></div>
+  </div>
+
+  <div class="step" id="mmStep2" style="display:none;">
+    <h3>Step 2: Configure Grouping and Filters</h3>
+
+    <div class="form-row" style="flex-direction:column;gap:10px;">
+      <div style="display:flex;gap:20px;flex-wrap:wrap;">
+        <div>
+          <label style="font-size:0.82rem;color:var(--text2);display:block;margin-bottom:6px;">🖼 Header Image (shown at top of every document)</label>
+          <div class="img-upload-box" id="mmHeaderImgBox" onclick="document.getElementById('mmHeaderImgInput').click()">
+            <span id="mmHeaderImgLabel">Click to upload header image</span>
+            <img id="mmHeaderImgPreview" style="display:none;max-height:60px;max-width:300px;border-radius:4px;" />
+          </div>
+          <input type="file" id="mmHeaderImgInput" accept="image/*" style="display:none;" onchange="loadMmImage(this,'header')"/>
+          <button class="btn btn-outline" style="font-size:0.75rem;padding:3px 10px;margin-top:6px;display:none;" id="mmHeaderClear" onclick="clearMmImage('header')">✕ Remove</button>
+        </div>
+        <div>
+          <label style="font-size:0.82rem;color:var(--text2);display:block;margin-bottom:6px;">🖼 Footer Image (shown at bottom of every document)</label>
+          <div class="img-upload-box" id="mmFooterImgBox" onclick="document.getElementById('mmFooterImgInput').click()">
+            <span id="mmFooterImgLabel">Click to upload footer image</span>
+            <img id="mmFooterImgPreview" style="display:none;max-height:60px;max-width:300px;border-radius:4px;" />
+          </div>
+          <input type="file" id="mmFooterImgInput" accept="image/*" style="display:none;" onchange="loadMmImage(this,'footer')"/>
+          <button class="btn btn-outline" style="font-size:0.75rem;padding:3px 10px;margin-top:6px;display:none;" id="mmFooterClear" onclick="clearMmImage('footer')">✕ Remove</button>
+        </div>
+        <div>
+          <label style="font-size:0.82rem;color:var(--text2);display:block;margin-bottom:6px;">🖼 Last Page Footer Image <span style="font-size:0.75rem;opacity:0.7;">(1 page → replaces footer · 2+ pages → shown on last page only)</span></label>
+          <div class="img-upload-box" id="mmLastFooterImgBox" onclick="document.getElementById('mmLastFooterImgInput').click()">
+            <span id="mmLastFooterImgLabel">Click to upload last-page footer</span>
+            <img id="mmLastFooterImgPreview" style="display:none;max-height:60px;max-width:300px;border-radius:4px;" />
+          </div>
+          <input type="file" id="mmLastFooterImgInput" accept="image/*" style="display:none;" onchange="loadMmImage(this,'lastfooter')"/>
+          <button class="btn btn-outline" style="font-size:0.75rem;padding:3px 10px;margin-top:6px;display:none;" id="mmLastFooterClear" onclick="clearMmImage('lastfooter')">✕ Remove</button>
+        </div>
+        <div>
+          <label style="font-size:0.82rem;color:var(--text2);display:block;margin-bottom:6px;">🖼 Content End Footer <span style="font-size:0.75rem;opacity:0.7;">(image placed after content, flows inline)</span></label>
+          <div class="img-upload-box" id="mmContentFooterImgBox" onclick="document.getElementById('mmContentFooterImgInput').click()">
+            <span id="mmContentFooterImgLabel">Click to upload content-end image</span>
+            <img id="mmContentFooterImgPreview" style="display:none;max-height:60px;max-width:300px;border-radius:4px;" />
+          </div>
+          <input type="file" id="mmContentFooterImgInput" accept="image/*" style="display:none;" onchange="loadMmImage(this,'contentfooter')"/>
+          <button class="btn btn-outline" style="font-size:0.75rem;padding:3px 10px;margin-top:6px;display:none;" id="mmContentFooterClear" onclick="clearMmImage('contentfooter')">✕ Remove</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FONT SETTINGS -->
+    <div style="margin-top:16px;padding:14px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
+      <label style="font-size:0.88rem;font-weight:700;color:var(--accent);display:block;margin-bottom:12px;">🔤 PDF Font Settings</label>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
+        <div>
+          <label style="font-size:0.78rem;color:var(--text2);display:block;margin-bottom:4px;">Font Family</label>
+          <select class="sheet-sel" id="mmFontFamily">
+            <option value="Arial, sans-serif">Arial</option>
+            <option value="'Times New Roman', serif">Times New Roman</option>
+            <option value="'Courier New', monospace">Courier New</option>
+            <option value="Georgia, serif">Georgia</option>
+            <option value="Verdana, sans-serif">Verdana</option>
+            <option value="Tahoma, sans-serif">Tahoma</option>
+            <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text2);display:block;margin-bottom:4px;">Body Font Size</label>
+          <select class="sheet-sel" id="mmFontSize">
+            <option value="9">9px</option>
+            <option value="10">10px</option>
+            <option value="11" selected>11px</option>
+            <option value="12">12px</option>
+            <option value="13">13px</option>
+            <option value="14">14px</option>
+            <option value="16">16px</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text2);display:block;margin-bottom:4px;">Table Font Size</label>
+          <select class="sheet-sel" id="mmTableFontSize">
+            <option value="8">8px</option>
+            <option value="9">9px</option>
+            <option value="10" selected>10px</option>
+            <option value="11">11px</option>
+            <option value="12">12px</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text2);display:block;margin-bottom:4px;">Text Color</label>
+          <input type="color" id="mmFontColor" value="#111111" style="width:44px;height:34px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface2);padding:2px;"/>
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text2);display:block;margin-bottom:4px;">Header BG Color</label>
+          <input type="color" id="mmHeaderBg" value="#e8e8e8" style="width:44px;height:34px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--surface2);padding:2px;"/>
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text2);display:block;margin-bottom:4px;">Line Height</label>
+          <select class="sheet-sel" id="mmLineHeight">
+            <option value="1.4">1.4</option>
+            <option value="1.6" selected>1.6</option>
+            <option value="1.8">1.8</option>
+            <option value="2.0">2.0</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.78rem;color:var(--text2);display:block;margin-bottom:4px;">Bold Headers</label>
+          <select class="sheet-sel" id="mmBoldHeaders">
+            <option value="bold" selected>Yes</option>
+            <option value="normal">No</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-row" style="flex-direction:column;gap:6px;margin-top:12px;">
+      <label>Select Group Column</label>
+      <select class="sheet-sel" id="mmGroupCol" style="max-width:300px;"></select>
+      <p style="font-size:0.78rem;color:var(--text2);">Documents will be grouped by unique values in this column.</p>
+    </div>
+
+    <div class="form-row" style="flex-direction:column;gap:6px;margin-top:12px;">
+      <label>Content Before Table (Introduction) — click a field to insert:</label>
+      <div class="merge-field-chips" id="mmChipsBefore" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>
+      <textarea id="mmBefore" rows="3" style="max-width:500px;"></textarea>
+      <label style="margin-top:10px;">Content After Table (Summary/Closing) — click a field to insert:</label>
+      <div class="merge-field-chips" id="mmChipsAfter" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>
+      <textarea id="mmAfter" rows="3" style="max-width:500px;"></textarea>
+    </div>
+
+    <div style="margin-top:12px;">
+      <label style="font-size:0.85rem;color:var(--text2);font-weight:600;">1. Available Columns — check to include:</label>
+      <div class="col-checkbox-list" id="mmColChecks"></div>
+    </div>
+    <div style="margin-top:12px;">
+      <label style="font-size:0.85rem;color:var(--text2);font-weight:600;">2. Column Order (drag to reorder):</label>
+      <div class="col-order-list" id="mmColOrder"></div>
+    </div>
+
+    <button class="btn" style="margin-top:16px;" onclick="generateDocs()">Generate Documents</button>
+    <button class="btn btn-green" id="mmZipBtn" style="margin-top:16px;display:none;" onclick="downloadAllZip()">⬇ Download All PDFs as ZIP</button>
+    <div class="status" id="mmGenStatus"></div>
+    <div class="file-list" id="mmFileList"></div>
+  </div>
+</div>
+
+<!-- ===================== FILE SPLITTER ===================== -->
+<div class="page" id="page-splitter">
+  <div class="back-bar">
+    <button onclick="showPage('home')">⬅ Back</button>
+    <button onclick="showPage('mailmerge')">Mail Merge</button>
+  </div>
+  <div class="page-title">✂️ Excel Sheet Splitter</div>
+  <p style="color:var(--text2);font-size:0.9rem;margin-bottom:20px;">Upload an Excel file and download each sheet separately (dates preserved).</p>
+
+  <div class="section-box">
+    <div class="upload-zone">
+      <div class="uz-icon">📂</div>
+      <p>Upload Excel file</p>
+      <input type="file" accept=".xlsx,.xls" onchange="loadSplitter(this)"/>
+    </div>
+    <div class="status" id="splitStatus"></div>
+  </div>
+
+  <ul class="file-list" id="splitFileList"></ul>
+</div>
+
+<!-- ===================== MERGER ===================== -->
+<div class="page" id="page-merger">
+  <div class="back-bar">
+    <button onclick="showPage('home')">⬅ Back</button>
+  </div>
+  <div class="page-title">🔗 Merge Two Excel Files</div>
+  <p style="color:var(--text2);font-size:0.9rem;margin-bottom:20px;">Upload two Excel files to merge (second file's header row will be ignored).</p>
+
+  <div class="section-box" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div>
+      <label style="font-size:0.85rem;color:var(--text2);display:block;margin-bottom:8px;">File 1 (primary)</label>
+      <div class="upload-zone" style="padding:24px 12px;">
+        <div class="uz-icon" style="font-size:1.8rem;">📄</div>
+        <p style="font-size:0.8rem;" id="mergeF1Name">Choose File 1</p>
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="mergeFiles[0]=this.files[0];document.getElementById('mergeF1Name').textContent=this.files[0].name"/>
+      </div>
+    </div>
+    <div>
+      <label style="font-size:0.85rem;color:var(--text2);display:block;margin-bottom:8px;">File 2 (appended)</label>
+      <div class="upload-zone" style="padding:24px 12px;">
+        <div class="uz-icon" style="font-size:1.8rem;">📄</div>
+        <p style="font-size:0.8rem;" id="mergeF2Name">Choose File 2</p>
+        <input type="file" accept=".xlsx,.xls,.csv" onchange="mergeFiles[1]=this.files[0];document.getElementById('mergeF2Name').textContent=this.files[0].name"/>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;">
+    <button class="btn btn-green" onclick="doMerge()">🔗 Merge &amp; Download</button>
+    <div class="status" id="mergeStatus"></div>
+  </div>
+</div>
+
+<!-- ===================== SCRIPTS ===================== -->
+<script>
+// ---- THEME ----
+let isDark = true;
+function toggleTheme() {
+  isDark = !isDark;
+  document.body.classList.toggle('light', !isDark);
+  document.getElementById('themeBtn').textContent = isDark ? '🌙 Dark' : '☀️ Light';
+}
+
+// ---- PAGE ROUTING ----
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ---- MODALS ----
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openTickList() { renderTicks(); openModal('tickModal'); }
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+// ---- TICK LIST ----
+let ticks = JSON.parse(localStorage.getItem('ticks') || '[]');
+function saveTicks() { localStorage.setItem('ticks', JSON.stringify(ticks)); }
+function addTick() {
+  const inp = document.getElementById('tickInput');
+  const val = inp.value.trim();
+  if (!val) return;
+  ticks.push({ text: val, done: false });
+  saveTicks(); renderTicks(); inp.value = '';
+}
+function toggleTick(i) { ticks[i].done = !ticks[i].done; saveTicks(); renderTicks(); }
+function deleteTick(i) { ticks.splice(i, 1); saveTicks(); renderTicks(); }
+function renderTicks() {
+  const ul = document.getElementById('tickList');
+  ul.innerHTML = ticks.map((t, i) => `
+    <li class="${t.done ? 'done' : ''}">
+      <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleTick(${i})"/>
+      <span>${escHtml(t.text)}</span>
+      <button class="del-btn" onclick="deleteTick(${i})">🗑</button>
+    </li>`).join('');
+}
+
+// ---- PROFILE ----
+function saveProfile() {
+  const p = { name: document.getElementById('pName').value, email: document.getElementById('pEmail').value, role: document.getElementById('pRole').value };
+  localStorage.setItem('profile', JSON.stringify(p));
+  const msg = document.getElementById('savedMsg');
+  msg.style.display = 'block';
+  setTimeout(() => msg.style.display = 'none', 2000);
+}
+(function loadProfile() {
+  const p = JSON.parse(localStorage.getItem('profile') || '{}');
+  if (p.name) document.getElementById('pName').value = p.name;
+  if (p.email) document.getElementById('pEmail').value = p.email;
+  if (p.role) document.getElementById('pRole').value = p.role;
+})();
+
+// ---- SHARED EXCEL STATE ----
+const wbs = { excel: null, stock: null, pres: null };
+
+function loadExcelFile(input, ctx) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      wbs[ctx] = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      if (ctx === 'excel') setupExcel();
+      if (ctx === 'stock') setupStock();
+      if (ctx === 'pres') setupPres();
+    } catch(err) { alert('Error reading file: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ---- EXCEL DASHBOARD ----
+function setupExcel() {
+  const wb = wbs.excel;
+  const sel = document.getElementById('excelSheetSel');
+  const sel2 = document.getElementById('excelSheetSel2');
+  sel.innerHTML = sel2.innerHTML = wb.SheetNames.map(n => `<option>${escHtml(n)}</option>`).join('');
+  document.getElementById('excelControls').style.display = 'block';
+  renderExcelSheet();
+}
+function renderExcelSheet() {
+  const wb = wbs.excel;
+  if (!wb) return;
+  const name = document.getElementById('excelSheetSel').value;
+  const data = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '' });
+  document.getElementById('excelTableWrap').innerHTML = buildTable(data, true);
+}
+function toggleExcelCompare() {
+  const row = document.getElementById('excelCompareRow');
+  row.style.display = row.style.display === 'none' ? 'flex' : 'none';
+  if (row.style.display === 'flex') renderExcelCompare();
+}
+function renderExcelCompare() {
+  const wb = wbs.excel;
+  if (!wb) return;
+  const n1 = document.getElementById('excelSheetSel').value;
+  const n2 = document.getElementById('excelSheetSel2').value;
+  const d1 = XLSX.utils.sheet_to_json(wb.Sheets[n1], { header: 1, defval: '' });
+  const d2 = XLSX.utils.sheet_to_json(wb.Sheets[n2], { header: 1, defval: '' });
+  document.getElementById('excelTableWrap').innerHTML = `
+    <div class="compare-grid">
+      <div><div class="section-box" style="padding:12px 16px;margin-bottom:8px;"><strong>${escHtml(n1)}</strong></div>${buildTable(d1)}</div>
+      <div><div class="section-box" style="padding:12px 16px;margin-bottom:8px;"><strong>${escHtml(n2)}</strong></div>${buildTable(d2)}</div>
+    </div>`;
+}
+
+// ---- STOCK DASHBOARD ----
+function setupStock() {
+  const wb = wbs.stock;
+  const sel = document.getElementById('stockSheetSel');
+  const sel2 = document.getElementById('stockSheetSel2');
+  sel.innerHTML = sel2.innerHTML = wb.SheetNames.map(n => `<option>${escHtml(n)}</option>`).join('');
+  document.getElementById('stockControls').style.display = 'block';
+  renderStockSheet();
+}
+function renderStockSheet() {
+  const wb = wbs.stock;
+  if (!wb) return;
+  const name = document.getElementById('stockSheetSel').value;
+  const data = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '' });
+  if (data.length === 0) { document.getElementById('stockTableWrap').innerHTML = ''; return; }
+  
+  // Populate column selects
+  const headers = data[0];
+  const bSel = document.getElementById('stockBelowCol');
+  const mSel = document.getElementById('stockBetweenCol');
+  const bVal = bSel.value, mVal = mSel.value;
+  bSel.innerHTML = mSel.innerHTML = `<option value="">-- None --</option>` + headers.map(h => `<option>${escHtml(String(h))}</option>`).join('');
+  if (bVal) bSel.value = bVal;
+  if (mVal) mSel.value = mVal;
+
+  const belowCol = bSel.value ? headers.indexOf(bSel.value) : -1;
+  const midCol = mSel.value ? headers.indexOf(mSel.value) : -1;
+
+  // Build colored table
+  let html = `<div class="table-wrap"><table><thead><tr>${headers.map(h=>`<th>${escHtml(String(h))}</th>`).join('')}</tr></thead><tbody>`;
+  for (let r = 1; r < data.length; r++) {
+    const row = data[r];
+    html += '<tr>' + row.map((cell, ci) => {
+      let cls = '';
+      if (ci === belowCol) {
+        const v = parseFloat(cell);
+        if (!isNaN(v) && v < 10) cls = 'highlight-red';
+      }
+      if (ci === midCol) {
+        const v = parseFloat(cell);
+        if (!isNaN(v) && v >= 10 && v <= 30) cls = 'highlight-yellow';
+      }
+      return `<td class="${cls}">${escHtml(String(cell))}</td>`;
+    }).join('') + '</tr>';
+  }
+  html += '</tbody></table></div>';
+  document.getElementById('stockTableWrap').innerHTML = html;
+}
+function toggleStockCompare() {
+  const row = document.getElementById('stockCompareRow');
+  row.style.display = row.style.display === 'none' ? 'flex' : 'none';
+}
+
+// ---- PRESENTATION ----
+let presChartInstances = [];
+function setupPres() {
+  const wb = wbs.pres;
+  const sel = document.getElementById('presSheetSel');
+  sel.innerHTML = wb.SheetNames.map(n => `<option>${escHtml(n)}</option>`).join('');
+  document.getElementById('presControls').style.display = 'block';
+  renderPresSheet();
+}
+function renderPresSheet() {
+  const wb = wbs.pres;
+  if (!wb) return;
+  const name = document.getElementById('presSheetSel').value;
+  const data = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '' });
+  if (data.length === 0) return;
+
+  // Destroy old charts
+  presChartInstances.forEach(c => c.destroy());
+  presChartInstances = [];
+
+  const lineRow = Math.max(0, (parseInt(document.getElementById('lineChartRow').value) || 1) - 1);
+  const barCol = Math.max(0, (parseInt(document.getElementById('barChartCol').value) || 1) - 1);
+  const headers = data[0];
+
+  // Build colored table
+  const colColors = ['highlight-green','highlight-yellow','highlight-red',''];
+  let tbl = `<div class="table-wrap" style="margin-top:20px;"><table><thead><tr>${headers.map(h=>`<th>${escHtml(String(h))}</th>`).join('')}</tr></thead><tbody>`;
+  for (let r = 1; r < data.length; r++) {
+    tbl += '<tr>' + data[r].map((cell,ci) => {
+      const cls = colColors[ci % colColors.length];
+      return `<td class="${cls}">${escHtml(String(cell))}</td>`;
+    }).join('') + '</tr>';
+  }
+  tbl += '</tbody></table></div>';
+  document.getElementById('presTableWrap').innerHTML = tbl;
+
+  // Charts using Canvas
+  const chartsDiv = document.getElementById('presCharts');
+  chartsDiv.innerHTML = '';
+
+  // Load Chart.js if not loaded
+  if (!window.Chart) {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';
+    s.onload = () => drawPresCharts(data, lineRow, barCol, chartsDiv);
+    document.head.appendChild(s);
+  } else {
+    drawPresCharts(data, lineRow, barCol, chartsDiv);
+  }
+}
+function drawPresCharts(data, lineRow, barCol, chartsDiv) {
+  const headers = data[0];
+  const accent = '#6c63ff', accent2 = '#00d4aa';
+  Chart.defaults.color = isDark ? '#9095b8' : '#5a5f8a';
+
+  // Line chart from selected row
+  if (data[lineRow + 1]) {
+    const row = data[lineRow + 1];
+    const c1 = document.createElement('canvas'); c1.height = 80;
+    const wrap1 = document.createElement('div');
+    wrap1.className = 'chart-container';
+    wrap1.innerHTML = `<div style="font-size:0.85rem;color:var(--text2);margin-bottom:12px;font-weight:600;">📈 Line Chart — Row ${lineRow+1}</div>`;
+    wrap1.appendChild(c1); chartsDiv.appendChild(wrap1);
+    const inst = new Chart(c1, {
+      type: 'line',
+      data: { labels: headers.map(String), datasets: [{ label: `Row ${lineRow+1}`, data: row.map(v => isNaN(parseFloat(v)) ? null : parseFloat(v)), borderColor: accent, backgroundColor: accent + '22', tension: 0.4, pointRadius: 4 }] },
+      options: { responsive: true, plugins: { legend: { labels: { color: isDark?'#e8eaf6':'#1a1d2e' } } }, scales: { x: { ticks: { color: isDark?'#9095b8':'#5a5f8a' }, grid: { color: isDark?'#2e3250':'#c5c8e8' } }, y: { ticks: { color: isDark?'#9095b8':'#5a5f8a' }, grid: { color: isDark?'#2e3250':'#c5c8e8' } } } }
+    });
+    presChartInstances.push(inst);
+  }
+
+  // Bar chart from selected column
+  if (barCol < headers.length) {
+    const colData = data.slice(1).map(r => parseFloat(r[barCol])).filter(v => !isNaN(v));
+    const colLabels = data.slice(1).map((r,i) => r[0] || `Row ${i+2}`);
+    const c2 = document.createElement('canvas'); c2.height = 80;
+    const wrap2 = document.createElement('div');
+    wrap2.className = 'chart-container';
+    wrap2.innerHTML = `<div style="font-size:0.85rem;color:var(--text2);margin-bottom:12px;font-weight:600;">📊 Bar Chart — Column: ${escHtml(String(headers[barCol]))}</div>`;
+    wrap2.appendChild(c2); chartsDiv.appendChild(wrap2);
+    const inst2 = new Chart(c2, {
+      type: 'bar',
+      data: { labels: colLabels.slice(0,30), datasets: [{ label: String(headers[barCol]), data: colData.slice(0,30), backgroundColor: accent2 + 'bb', borderColor: accent2, borderWidth: 1 }] },
+      options: { responsive: true, plugins: { legend: { labels: { color: isDark?'#e8eaf6':'#1a1d2e' } } }, scales: { x: { ticks: { color: isDark?'#9095b8':'#5a5f8a', maxRotation: 45 }, grid: { color: isDark?'#2e3250':'#c5c8e8' } }, y: { ticks: { color: isDark?'#9095b8':'#5a5f8a' }, grid: { color: isDark?'#2e3250':'#c5c8e8' } } } }
+    });
+    presChartInstances.push(inst2);
+  }
+}
+
+// ---- MAIL MERGE ----
+let mmData = [], mmHeaders = [];
+function loadMailMerge(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      mmData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+      mmHeaders = mmData.length > 0 ? Object.keys(mmData[0]) : [];
+      document.getElementById('mmStatus').textContent = `✅ Loaded ${mmData.length} rows, ${mmHeaders.length} columns`;
+      document.getElementById('mmStatus').className = 'status ok';
+      setupMailMergeUI();
+      document.getElementById('mmStep2').style.display = 'block';
+    } catch(err) {
+      document.getElementById('mmStatus').textContent = '❌ Error: ' + err.message;
+      document.getElementById('mmStatus').className = 'status err';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function setupMailMergeUI() {
+  const gc = document.getElementById('mmGroupCol');
+  gc.innerHTML = mmHeaders.map(h => `<option>${escHtml(h)}</option>`).join('');
+  const checks = document.getElementById('mmColChecks');
+  checks.innerHTML = mmHeaders.map(h => `<label><input type="checkbox" value="${escHtml(h)}" onchange="updateColOrder()"/> ${escHtml(h)}</label>`).join('');
+  updateColOrder();
+  renderMergeChips();
+}
+function renderMergeChips() {
+  ['mmChipsBefore','mmChipsAfter'].forEach(id => {
+    const div = document.getElementById(id);
+    const targetId = id === 'mmChipsBefore' ? 'mmBefore' : 'mmAfter';
+    div.innerHTML = mmHeaders.map(h =>
+      `<button class="merge-chip" onclick="insertMergeField('${targetId}','${escHtml(h)}')" type="button">{{${escHtml(h)}}}</button>`
+    ).join('');
+  });
+}
+function insertMergeField(targetId, fieldName) {
+  const ta = document.getElementById(targetId);
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  const val = ta.value;
+  const insert = `{{${fieldName}}}`;
+  ta.value = val.slice(0, start) + insert + val.slice(end);
+  ta.selectionStart = ta.selectionEnd = start + insert.length;
+  ta.focus();
+}
+let colOrder = [];
+function updateColOrder() {
+  const checked = [...document.querySelectorAll('#mmColChecks input:checked')].map(el => el.value);
+  colOrder = checked;
+  renderColOrder();
+}
+function renderColOrder() {
+  const div = document.getElementById('mmColOrder');
+  div.innerHTML = colOrder.map((col, i) => `
+    <div class="col-tag" draggable="true" data-i="${i}">
+      ${escHtml(col)}
+      <span onclick="removeColOrder(${i})">×</span>
+    </div>`).join('');
+  setupDrag();
+}
+function removeColOrder(i) {
+  const col = colOrder[i];
+  colOrder.splice(i, 1);
+  const box = document.querySelector(`#mmColChecks input[value="${CSS.escape(col)}"]`);
+  if (box) box.checked = false;
+  renderColOrder();
+}
+function setupDrag() {
+  const tags = document.querySelectorAll('#mmColOrder .col-tag');
+  let dragging = null;
+  tags.forEach(tag => {
+    tag.addEventListener('dragstart', e => { dragging = parseInt(tag.dataset.i); tag.style.opacity = '0.5'; });
+    tag.addEventListener('dragend', () => { tag.style.opacity = '1'; });
+    tag.addEventListener('dragover', e => { e.preventDefault(); });
+    tag.addEventListener('drop', e => {
+      e.preventDefault();
+      const to = parseInt(tag.dataset.i);
+      if (dragging !== null && dragging !== to) {
+        const item = colOrder.splice(dragging, 1)[0];
+        colOrder.splice(to, 0, item);
+        renderColOrder();
+      }
+    });
+  });
+}
+let mmHeaderImgB64 = null, mmFooterImgB64 = null, mmLastPageFooterImgB64 = null, mmContentFooterImgB64 = null;
+function loadMmImage(input, type) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const b64 = e.target.result;
+    if (type === 'header') {
+      mmHeaderImgB64 = b64;
+      document.getElementById('mmHeaderImgPreview').src = b64;
+      document.getElementById('mmHeaderImgPreview').style.display = 'block';
+      document.getElementById('mmHeaderImgLabel').style.display = 'none';
+      document.getElementById('mmHeaderClear').style.display = 'inline-block';
+    } else if (type === 'lastfooter') {
+      mmLastPageFooterImgB64 = b64;
+      document.getElementById('mmLastFooterImgPreview').src = b64;
+      document.getElementById('mmLastFooterImgPreview').style.display = 'block';
+      document.getElementById('mmLastFooterImgLabel').style.display = 'none';
+      document.getElementById('mmLastFooterClear').style.display = 'inline-block';
+    } else if (type === 'contentfooter') {
+      mmContentFooterImgB64 = b64;
+      document.getElementById('mmContentFooterImgPreview').src = b64;
+      document.getElementById('mmContentFooterImgPreview').style.display = 'block';
+      document.getElementById('mmContentFooterImgLabel').style.display = 'none';
+      document.getElementById('mmContentFooterClear').style.display = 'inline-block';
+    } else {
+      mmFooterImgB64 = b64;
+      document.getElementById('mmFooterImgPreview').src = b64;
+      document.getElementById('mmFooterImgPreview').style.display = 'block';
+      document.getElementById('mmFooterImgLabel').style.display = 'none';
+      document.getElementById('mmFooterClear').style.display = 'inline-block';
+    }
+  };
+  reader.readAsDataURL(file);
+}
+function clearMmImage(type) {
+  if (type === 'header') {
+    mmHeaderImgB64 = null;
+    document.getElementById('mmHeaderImgPreview').style.display = 'none';
+    document.getElementById('mmHeaderImgLabel').style.display = 'inline';
+    document.getElementById('mmHeaderClear').style.display = 'none';
+    document.getElementById('mmHeaderImgInput').value = '';
+  } else if (type === 'lastfooter') {
+    mmLastPageFooterImgB64 = null;
+    document.getElementById('mmLastFooterImgPreview').style.display = 'none';
+    document.getElementById('mmLastFooterImgLabel').style.display = 'inline';
+    document.getElementById('mmLastFooterClear').style.display = 'none';
+    document.getElementById('mmLastFooterImgInput').value = '';
+  } else if (type === 'contentfooter') {
+    mmContentFooterImgB64 = null;
+    document.getElementById('mmContentFooterImgPreview').style.display = 'none';
+    document.getElementById('mmContentFooterImgLabel').style.display = 'inline';
+    document.getElementById('mmContentFooterClear').style.display = 'none';
+    document.getElementById('mmContentFooterImgInput').value = '';
+  } else {
+    mmFooterImgB64 = null;
+    document.getElementById('mmFooterImgPreview').style.display = 'none';
+    document.getElementById('mmFooterImgLabel').style.display = 'inline';
+    document.getElementById('mmFooterClear').style.display = 'none';
+    document.getElementById('mmFooterImgInput').value = '';
+  }
+}
+let mmDocBlobs = {}; // store for ZIP download (PDF bytes keyed by filename)
+
+function buildDocHtmlContent(key, rows, cols, before, after) {
+  function resolveMerge(text, firstRow) {
+    return text.replace(/\{\{([^}]+)\}\}/g, (_, field) => {
+      return field in firstRow ? escHtml(String(firstRow[field])) : '{{'+field+'}}';
+    });
+  }
+  const firstRow = rows[0] || {};
+  const resolvedBefore = before ? resolveMerge(before.replace(/\r\n|\r|\n/g,'<br>'), firstRow) : '';
+  const resolvedAfter  = after  ? resolveMerge(after.replace(/\r\n|\r|\n/g,'<br>'), firstRow) : '';
+
+  const ffamily = document.getElementById('mmFontFamily').value;
+  const fsize   = document.getElementById('mmFontSize').value;
+  const tfsize  = document.getElementById('mmTableFontSize').value;
+  const fcolor  = document.getElementById('mmFontColor').value;
+  const hbg     = document.getElementById('mmHeaderBg').value;
+  const lheight = document.getElementById('mmLineHeight').value;
+  const boldHdr = document.getElementById('mmBoldHeaders').value;
+
+  // Content only — header/footer images stamped per-page by htmlToPdfBytes
+  let html = '<!DOCTYPE html><html><head><meta charset="UTF-8"/><style>'
+    + '* { box-sizing:border-box; } html,body { margin:0; padding:0; background:#fff; }'
+    + 'body { font-family:' + ffamily + '; color:' + fcolor + '; padding:12px 36px 4px; width:794px; }'
+    + 'p,div { font-size:' + fsize + 'px; line-height:' + lheight + '; margin:8px 0; }'
+    + 'table { border-collapse:collapse; width:100%; table-layout:fixed; word-break:break-word; margin:12px 0; }'
+    + 'th,td { border:1px solid #999; padding:5px 8px; font-size:' + tfsize + 'px; text-align:left; word-wrap:break-word; font-family:' + ffamily + '; }'
+    + 'th { background:' + hbg + '; font-weight:' + boldHdr + '; }'
+    + 'img { max-width:100%; }'
+    + '</style></head><body>';
+  if (resolvedBefore) html += '<div style="font-size:' + fsize + 'px;line-height:' + lheight + ';margin:8px 0;">' + resolvedBefore + '</div>';
+  html += '<table><thead><tr>' + cols.map(c => '<th>' + escHtml(c) + '</th>').join('') + '</tr></thead><tbody>';
+  rows.forEach(r => { html += '<tr>' + cols.map(c => '<td>' + escHtml(String(r[c] ?? '')) + '</td>').join('') + '</tr>'; });
+  html += '</tbody></table>';
+  if (resolvedAfter.trim()) {
+    html += '<div style="font-size:' + fsize + 'px;line-height:' + lheight + ';margin-top:6px;margin-bottom:0;">' + resolvedAfter + '</div>';
+  }
+  if (mmContentFooterImgB64) {
+    html += '<div id="cf-end-img" style="margin-top:10px;margin-bottom:8px;"><img src="' + mmContentFooterImgB64 + '" style="max-width:100%;display:block;" /></div>';
+  }
+  html += '</body></html>';
+  return html;
+}
+
+async function htmlToPdfBytes(htmlContent, lastPageFooterB64) {
+  const PAGE_W = 794;
+  const PAGE_H = 1123;
+
+  async function getImgHeight(b64, maxH, pageW) {
+    if (!b64) return 0;
+    return new Promise(res => {
+      const img = new Image();
+      img.onload = () => { const ratio = img.naturalWidth / pageW; res(Math.ceil(Math.min(img.naturalHeight / ratio, maxH))); };
+      img.onerror = () => res(maxH);
+      img.src = b64;
+    });
+  }
+
+  async function imgToCanvas(b64, w, h) {
+    if (!b64 || h === 0) return null;
+    return new Promise(res => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = w * 2; c.height = h * 2;
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        res(c);
+      };
+      img.onerror = () => res(null);
+      img.src = b64;
+    });
+  }
+
+  const HDR_MAX = 120, FTR_MAX = 100;
+  const hdrH = mmHeaderImgB64 ? await getImgHeight(mmHeaderImgB64, HDR_MAX, PAGE_W) : 0;
+  const ftrH = mmFooterImgB64 ? await getImgHeight(mmFooterImgB64, FTR_MAX, PAGE_W) : 0;
+  const HDR_PAD = hdrH > 0 ? hdrH + 10 : 0;
+  const FTR_PAD = ftrH > 0 ? ftrH + 10 : 0;
+  const CONTENT_H = PAGE_H - HDR_PAD - FTR_PAD;
+
+  // Step 1: Render the full HTML into a single tall canvas via a hidden iframe.
+  // The iframe is sized to actual content height so html2canvas captures everything.
+  const { canvas: contentCanvas, trSpans } = await new Promise((resolve, reject) => {
+    const iframe = document.createElement('iframe');
+    // Start at 1px — this ensures that after we resize to actualH,
+    // window.innerHeight inside the iframe truly equals actualH.
+    // Starting at 20000px means html2canvas reads innerHeight=20000
+    // and captures 20000px even when height:actualH is passed in options.
+    iframe.style.cssText = 'position:absolute;left:-9999px;top:0;width:' + PAGE_W + 'px;height:1px;border:none;background:#fff;visibility:hidden;';
+    document.body.appendChild(iframe);
+    iframe.onload = async () => {
+      try {
+        const iDoc = iframe.contentDocument || iframe.contentWindow.document;
+        // Wait one frame so layout is fully computed at 1px height
+        await new Promise(r => iframe.contentWindow.requestAnimationFrame(r));
+        const actualH = iDoc.documentElement.scrollHeight || iDoc.body.scrollHeight;
+        // Resize iframe to exact content height so window.innerHeight === actualH
+        iframe.style.height = actualH + 'px';
+        // Wait two frames after resize so the browser reflows at the new size
+        await new Promise(r => iframe.contentWindow.requestAnimationFrame(r));
+        await new Promise(r => iframe.contentWindow.requestAnimationFrame(r));
+        const canvas = await html2canvas(iDoc.body, {
+          scale: 2, useCORS: true, backgroundColor: '#ffffff',
+          width: PAGE_W, windowWidth: PAGE_W,
+          height: actualH, windowHeight: actualH,
+          scrollX: 0, scrollY: 0
+        });
+        // Defensive crop: only trim when the canvas is substantially taller than
+        // actualH (i.e. the old 20000px blank-page problem). A 50px (unscaled)
+        // safety buffer prevents cropping the last row of a table — scrollHeight
+        // can undercount by a few px due to sub-pixel borders/shadows, so cutting
+        // at exactly actualH*scale risks slicing real content just like a PDF
+        // page-break mid-row.
+        const CROP_BUFFER_PX = 50; // unscaled px; generous but harmless
+        const targetH = (actualH + CROP_BUFFER_PX) * 2; // scale = 2
+        let finalCanvas = canvas;
+        if (canvas.height > targetH) {
+          finalCanvas = document.createElement('canvas');
+          finalCanvas.width  = canvas.width;
+          finalCanvas.height = targetH;
+          finalCanvas.getContext('2d').drawImage(canvas, 0, 0);
+        }
+        // Collect the top+bottom of every <tr> while the iframe is still mounted.
+        // We only need table rows — cutting mid-paragraph is fine (text reflows
+        // visually), but cutting mid-row splits a cell border and looks broken.
+        // Using top+bottom (not just bottom) lets snapBreak check whether a cut
+        // point actually falls *inside* a row, rather than snapping blindly backward
+        // (which creates large gaps when the last row ends far above the cut point).
+        const trSpans = [];
+        for (const el of iDoc.querySelectorAll('tr')) {
+          const r = el.getBoundingClientRect();
+          if (r.bottom > 0 && r.top < actualH + CROP_BUFFER_PX) {
+            trSpans.push({ top: Math.round(r.top), bottom: Math.round(r.bottom) });
+          }
+        }
+        // Also protect the content-end footer image from being split by a page break.
+        // It is inline content but the slicer doesn't know about it unless we add it here.
+        const cef = iDoc.getElementById('cf-end-img');
+        if (cef) {
+          const r = cef.getBoundingClientRect();
+          if (r.bottom > 0 && r.top < actualH + CROP_BUFFER_PX) {
+            trSpans.push({ top: Math.round(r.top), bottom: Math.round(r.bottom) });
+          }
+        }
+
+        document.body.removeChild(iframe);
+        resolve({ canvas: finalCanvas, trSpans });
+      } catch(err) { document.body.removeChild(iframe); reject(err); }
+    };
+    iframe.srcdoc = htmlContent;
+  });
+
+  const scale = 2;
+  const totalContentPx = contentCanvas.height / scale;
+
+  // snapBreak: only moves the cut point when it would bisect a <tr>.
+  // - If idealY falls inside a row (row.top < idealY < row.bottom), snap
+  //   to row.top so the full row lands on the next page. No gap is created
+  //   for content between rows or below the table — those cut at idealY as-is.
+  // - pageStartY guard: if the row starts at the very top of the current page,
+  //   the row is taller than CONTENT_H and can't be avoided — cut anyway.
+  function snapBreak(idealY, pageStartY) {
+    for (const { top, bottom } of trSpans) {
+      if (top < idealY && idealY < bottom) {
+        // idealY bisects this row — move cut to just above it
+        return top > pageStartY ? top : idealY; // can't avoid oversized row
+      }
+    }
+    // No row is being cut — use idealY exactly, zero wasted space
+    return Math.min(idealY, totalContentPx);
+  }
+
+  // Step 2: Slice canvas into pages, cutting at idealY unless that point
+  // falls mid-row, in which case snap up to the row's top edge.
+  const pageSlices = [];
+  let startY = 0;
+  while (startY < totalContentPx) {
+    const idealEnd = startY + CONTENT_H;
+    if (idealEnd >= totalContentPx) {
+      pageSlices.push({ startY, endY: totalContentPx });
+      break;
+    }
+    const endY = snapBreak(idealEnd, startY);
+    // Safety: if snap returned startY (single row taller than a page),
+    // force-advance to avoid an infinite loop.
+    const safeEnd = endY > startY ? endY : Math.min(startY + CONTENT_H, totalContentPx);
+    pageSlices.push({ startY, endY: safeEnd });
+    if (safeEnd >= totalContentPx) break;
+    startY = safeEnd;
+  }
+
+  const hdrCanvas = await imgToCanvas(mmHeaderImgB64, PAGE_W, hdrH);
+  const ftrCanvas = await imgToCanvas(mmFooterImgB64, PAGE_W, ftrH);
+
+  // Last-page footer: resolve which image to use and measure its height
+  // Rules:
+  //   - 1 page  → last-page footer replaces the normal footer entirely
+  //   - 2+ pages → last-page footer appears only on the last page; normal footer on all other pages
+  // We measure its height using the same FTR_MAX cap used for the normal footer.
+  const lpfB64 = lastPageFooterB64 || null;
+  const lpfH   = lpfB64 ? await getImgHeight(lpfB64, FTR_MAX, PAGE_W) : 0;
+  const lpfCanvas = lpfB64 ? await imgToCanvas(lpfB64, PAGE_W, lpfH) : null;
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
+  const pdfW = pdf.internal.pageSize.getWidth();
+  const pdfH = pdf.internal.pageSize.getHeight();
+
+  const pxToPt = pdfW / PAGE_W;
+  const contentZoneTop_pt = HDR_PAD * pxToPt;
+  const contentZoneH_pt   = CONTENT_H * pxToPt;
+  const footerTop_pt      = pdfH - (FTR_PAD * pxToPt);
+
+  const totalPages = pageSlices.length;
+
+  for (let p = 0; p < totalPages; p++) {
+    if (p > 0) pdf.addPage();
+    const { startY, endY } = pageSlices[p];
+    const isLastPage = (p === totalPages - 1);
+
+    // Header
+    if (hdrCanvas) {
+      pdf.addImage(hdrCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfW, HDR_PAD * pxToPt);
+    }
+
+    // Content slice
+    const srcY  = Math.round(startY * scale);
+    const srcH  = Math.round((endY - startY) * scale);
+    const sliceCanvas = document.createElement('canvas');
+    sliceCanvas.width  = contentCanvas.width;
+    sliceCanvas.height = Math.max(srcH, 1);
+    const ctx2 = sliceCanvas.getContext('2d');
+    ctx2.fillStyle = '#ffffff';
+    ctx2.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+    ctx2.drawImage(contentCanvas, 0, srcY, contentCanvas.width, srcH, 0, 0, contentCanvas.width, srcH);
+    const slicePdfH = Math.min((endY - startY) * pxToPt, contentZoneH_pt);
+    pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, contentZoneTop_pt, pdfW, slicePdfH);
+
+    // Footer logic:
+    //   - If lpfCanvas exists and this is the last page (or the only page): use last-page footer
+    //   - Otherwise: use normal footer (if any)
+    if (isLastPage && lpfCanvas) {
+      // Last-page footer replaces normal footer on this page
+      const lpfTop_pt = pdfH - (lpfH * pxToPt);
+      pdf.addImage(lpfCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, lpfTop_pt, pdfW, lpfH * pxToPt);
+    } else if (ftrCanvas) {
+      pdf.addImage(ftrCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, footerTop_pt, pdfW, FTR_PAD * pxToPt);
+    }
+  }
+
+  return pdf.output('arraybuffer');
+}
+
+
+async function generateDocs() {
+  if (!mmData.length) return;
+  const groupCol = document.getElementById('mmGroupCol').value;
+  const before = document.getElementById('mmBefore').value;
+  const after = document.getElementById('mmAfter').value;
+  const cols = colOrder.filter(c => c !== groupCol);
+
+  const groups = {};
+  mmData.forEach(row => {
+    const key = row[groupCol] || 'Ungrouped';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(row);
+  });
+
+  const sortedKeys = Object.keys(groups).sort((a, b) => String(a).localeCompare(String(b)));
+
+  const list = document.getElementById('mmFileList');
+  list.innerHTML = '';
+  mmDocBlobs = {};
+  const statusEl = document.getElementById('mmGenStatus');
+  statusEl.className = 'status';
+  statusEl.textContent = `⏳ Generating ${sortedKeys.length} PDF(s)... please wait.`;
+  document.getElementById('mmZipBtn').style.display = 'none';
+
+  for (let i = 0; i < sortedKeys.length; i++) {
+    const key = sortedKeys[i];
+    statusEl.textContent = `⏳ Generating PDF ${i+1} of ${sortedKeys.length}: ${key}`;
+    const rows = groups[key];
+    const htmlContent = buildDocHtmlContent(key, rows, cols, before, after);
+    try {
+      const pdfBytes = await htmlToPdfBytes(htmlContent, mmLastPageFooterImgB64);
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const fname = `${key}.pdf`;
+      mmDocBlobs[fname] = pdfBytes;
+
+      const li = document.createElement('li');
+      li.innerHTML = `<span>📄 ${escHtml(fname)} <small style="color:var(--text2)">(${rows.length} rows)</small></span>`;
+      const btn = document.createElement('button');
+      btn.className = 'dl-btn';
+      btn.textContent = '⬇ Download PDF';
+      btn.onclick = (() => { const u = url, f = fname; return () => { const a = document.createElement('a'); a.href = u; a.download = f; a.click(); }; })();
+      li.appendChild(btn);
+      list.appendChild(li);
+    } catch(err) {
+      const li = document.createElement('li');
+      li.innerHTML = `<span style="color:var(--red)">❌ ${escHtml(String(key))}: ${escHtml(err.message)}</span>`;
+      list.appendChild(li);
+    }
+  }
+
+  statusEl.textContent = `✅ ${sortedKeys.length} PDF(s) ready to download.`;
+  statusEl.className = 'status ok';
+  document.getElementById('mmZipBtn').style.display = 'inline-block';
+}
+
+async function downloadAllZip() {
+  if (!Object.keys(mmDocBlobs).length) return;
+  const zip = new JSZip();
+  Object.entries(mmDocBlobs).forEach(([fname, bytes]) => {
+    zip.file(fname, bytes);
+  });
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'mail_merge_pdfs.zip';
+  a.click();
+}
+
+// ---- FILE SPLITTER ----
+function loadSplitter(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const list = document.getElementById('splitFileList');
+      list.innerHTML = '';
+      document.getElementById('splitStatus').textContent = `✅ Found ${wb.SheetNames.length} sheet(s)`;
+      document.getElementById('splitStatus').className = 'status ok';
+      wb.SheetNames.forEach(name => {
+        const newWb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(newWb, wb.Sheets[name], name);
+        const out = XLSX.write(newWb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([out], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+        const li = document.createElement('li');
+        li.innerHTML = `<span>📄 ${escHtml(name)}.xlsx</span>`;
+        const btn = document.createElement('button');
+        btn.className = 'dl-btn';
+        btn.textContent = '⬇ Download';
+        btn.onclick = () => { const a = document.createElement('a'); a.href = url; a.download = `${name}.xlsx`; a.click(); };
+        li.appendChild(btn);
+        list.appendChild(li);
+      });
+    } catch(err) {
+      document.getElementById('splitStatus').textContent = '❌ Error: ' + err.message;
+      document.getElementById('splitStatus').className = 'status err';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ---- MERGER ----
+let mergeFiles = [null, null];
+function doMerge() {
+  if (!mergeFiles[0] || !mergeFiles[1]) { alert('Please upload both files.'); return; }
+  const readers = [new FileReader(), new FileReader()];
+  let results = [];
+  readers.forEach((r, i) => {
+    r.onload = e => {
+      results[i] = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      if (results[0] && results[1]) finishMerge(results);
+    };
+    r.readAsArrayBuffer(mergeFiles[i]);
+  });
+}
+function finishMerge([wb1, wb2]) {
+  try {
+    const s1 = wb1.Sheets[wb1.SheetNames[0]];
+    const s2 = wb2.Sheets[wb2.SheetNames[0]];
+    const d1 = XLSX.utils.sheet_to_json(s1, { header: 1, defval: '' });
+    const d2 = XLSX.utils.sheet_to_json(s2, { header: 1, defval: '' });
+    const merged = [...d1, ...d2.slice(1)]; // skip header of file 2
+    const newWb = XLSX.utils.book_new();
+    const newWs = XLSX.utils.aoa_to_sheet(merged);
+    XLSX.utils.book_append_sheet(newWb, newWs, 'Merged');
+    const out = XLSX.write(newWb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([out], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'merged.xlsx'; a.click();
+    document.getElementById('mergeStatus').textContent = `✅ Merged ${d1.length + d2.length - 1} rows downloaded.`;
+    document.getElementById('mergeStatus').className = 'status ok';
+  } catch(err) {
+    document.getElementById('mergeStatus').textContent = '❌ Error: ' + err.message;
+    document.getElementById('mergeStatus').className = 'status err';
+  }
+}
+
+// ---- DOWNLOAD EXCEL ----
+function downloadExcel(ctx) {
+  const wb = wbs[ctx];
+  if (!wb) return;
+  const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([out], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = ctx + '_export.xlsx'; a.click();
+}
+
+// ---- HELPERS ----
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function buildTable(data, colorCols) {
+  if (!data || data.length === 0) return '<p style="color:var(--text2);padding:16px;">No data</p>';
+  const headers = data[0];
+  let html = `<div class="table-wrap"><table><thead><tr>${headers.map(h=>`<th>${escHtml(String(h))}</th>`).join('')}</tr></thead><tbody>`;
+  const colors = ['highlight-green','highlight-yellow','highlight-red',''];
+  for (let r = 1; r < data.length; r++) {
+    html += '<tr>' + data[r].map((cell, ci) => {
+      const cls = colorCols ? colors[ci % colors.length] : '';
+      return `<td class="${cls}">${escHtml(String(cell))}</td>`;
+    }).join('') + '</tr>';
+  }
+  html += '</tbody></table></div>';
+  return html;
+}
+
+// ---- DRAG DROP UPLOAD ZONES ----
+document.querySelectorAll('.upload-zone').forEach(zone => {
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag');
+    const input = zone.querySelector('input[type=file]');
+    if (input && e.dataTransfer.files[0]) {
+      const dt = new DataTransfer();
+      dt.items.add(e.dataTransfer.files[0]);
+      input.files = dt.files;
+      input.dispatchEvent(new Event('change'));
+    }
+  });
+});
+</script>
+</body>
+</html>

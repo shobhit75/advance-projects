@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Name Missing Finder</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+    :root {
+        --bg: #f0f2f5;
+        --card: #ffffff;
+        --border: #d1d5db;
+        --primary: #1a56db;
+        --primary-hover: #1345b7;
+        --accent: #16a34a;
+        --text: #111827;
+        --muted: #6b7280;
+        --tag-bg: #eff6ff;
+        --tag-border: #bfdbfe;
+        --missing1: #fef2f2;
+        --missing1-border: #fecaca;
+        --missing2: #f0fdf4;
+        --missing2-border: #bbf7d0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: 'IBM Plex Sans', sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        padding: 28px 20px;
+        min-height: 100vh;
+    }
+
+    .container {
+        max-width: 1100px;
+        margin: auto;
+    }
+
+    header {
+        text-align: center;
+        margin-bottom: 28px;
+    }
+
+    header h1 {
+        font-size: 26px;
+        font-weight: 600;
+        letter-spacing: -0.5px;
+    }
+
+    header p {
+        color: var(--muted);
+        font-size: 14px;
+        margin-top: 6px;
+    }
+
+    .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 20px;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .panel-label {
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        color: var(--muted);
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .panel-label span.badge {
+        background: var(--tag-bg);
+        border: 1px solid var(--tag-border);
+        color: var(--primary);
+        border-radius: 4px;
+        padding: 1px 7px;
+        font-size: 11px;
+        font-family: 'IBM Plex Mono', monospace;
+    }
+
+    /* Upload area */
+    .upload-zone {
+        border: 2px dashed var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s;
+        background: #fafafa;
+        margin-bottom: 10px;
+        position: relative;
+    }
+
+    .upload-zone:hover, .upload-zone.drag-over {
+        border-color: var(--primary);
+        background: var(--tag-bg);
+    }
+
+    .upload-zone input[type="file"] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+    }
+
+    .upload-zone .upload-icon {
+        font-size: 24px;
+        margin-bottom: 4px;
+    }
+
+    .upload-zone p {
+        font-size: 13px;
+        color: var(--muted);
+    }
+
+    .upload-zone .file-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--primary);
+        font-family: 'IBM Plex Mono', monospace;
+        margin-top: 4px;
+    }
+
+    .divider {
+        text-align: center;
+        font-size: 12px;
+        color: var(--muted);
+        margin: 8px 0;
+        font-weight: 500;
+    }
+
+    textarea {
+        width: 100%;
+        height: 200px;
+        padding: 10px 12px;
+        font-size: 13px;
+        font-family: 'IBM Plex Mono', monospace;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        resize: vertical;
+        background: #fafafa;
+        color: var(--text);
+        transition: border-color 0.2s;
+        line-height: 1.6;
+    }
+
+    textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        background: #fff;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    button {
+        padding: 10px 22px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-family: 'IBM Plex Sans', sans-serif;
+        font-weight: 600;
+        transition: background 0.15s, transform 0.1s;
+    }
+
+    button:active { transform: scale(0.98); }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+    }
+
+    .btn-primary:hover { background: var(--primary-hover); }
+
+    .btn-secondary {
+        background: #f3f4f6;
+        color: var(--text);
+        border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover { background: #e5e7eb; }
+
+    .progress-bar {
+        height: 4px;
+        background: var(--border);
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 6px;
+        display: none;
+    }
+
+    .progress-bar .fill {
+        height: 100%;
+        background: var(--primary);
+        width: 0%;
+        transition: width 0.3s;
+        border-radius: 2px;
+    }
+
+    /* Results */
+    .stats-row {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 18px;
+        flex-wrap: wrap;
+    }
+
+    .stat-card {
+        flex: 1;
+        min-width: 160px;
+        border-radius: 8px;
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .stat-card.red { background: var(--missing1); border: 1px solid var(--missing1-border); }
+    .stat-card.green { background: var(--missing2); border: 1px solid var(--missing2-border); }
+
+    .stat-card .stat-num {
+        font-size: 28px;
+        font-weight: 700;
+        font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .stat-card.red .stat-num { color: #dc2626; }
+    .stat-card.green .stat-num { color: #16a34a; }
+
+    .stat-card .stat-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+    .result-lists {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .list-box h3 {
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--muted);
+    }
+
+    .list-scroll {
+        max-height: 360px;
+        overflow-y: auto;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+    }
+
+    .list-scroll.red { border-color: var(--missing1-border); }
+    .list-scroll.green { border-color: var(--missing2-border); }
+
+    .list-item {
+        padding: 8px 12px;
+        font-size: 13px;
+        font-family: 'IBM Plex Mono', monospace;
+        border-bottom: 1px solid #f1f1f1;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .list-item:last-child { border-bottom: none; }
+    .list-item:nth-child(odd) { background: #fafafa; }
+
+    .list-scroll.red .list-item:nth-child(odd) { background: #fff5f5; }
+    .list-scroll.green .list-item:nth-child(odd) { background: #f0fdf4; }
+
+    .list-item::before {
+        content: '—';
+        color: var(--muted);
+        font-size: 11px;
+    }
+
+    .empty-msg {
+        padding: 20px;
+        text-align: center;
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+    .toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: #111;
+        color: white;
+        padding: 10px 18px;
+        border-radius: 8px;
+        font-size: 13px;
+        opacity: 0;
+        transform: translateY(10px);
+        transition: all 0.3s;
+        pointer-events: none;
+        z-index: 999;
+    }
+
+    .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    @media(max-width: 700px) {
+        .grid, .result-lists { grid-template-columns: 1fr; }
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+    <header>
+        <h1>Name Missing Finder</h1>
+        <p>Compare two name lists and find what's missing on each side</p>
+    </header>
+
+    <div class="card">
+        <div class="grid">
+
+            <!-- List 1: RO Names -->
+            <div>
+                <div class="panel-label">List 1 — RO Names <span class="badge">TXT / PDF</span></div>
+
+                <div class="upload-zone" id="zone1">
+                    <input type="file" id="file1" accept=".txt,.pdf">
+                    <div class="upload-icon">📄</div>
+                    <p>Click or drag a <strong>.txt</strong> or <strong>.pdf</strong> file</p>
+                    <div class="file-name" id="fname1"></div>
+                </div>
+                <div class="progress-bar" id="prog1"><div class="fill" id="progfill1"></div></div>
+
+                <div class="divider">— or paste names below —</div>
+
+                <textarea id="text1" placeholder="Paste names here, one per line..."></textarea>
+            </div>
+
+            <!-- List 2: File Names -->
+            <div>
+                <div class="panel-label">List 2 — File Names <span class="badge">TXT / PDF</span></div>
+
+                <div class="upload-zone" id="zone2">
+                    <input type="file" id="file2" accept=".txt,.pdf">
+                    <div class="upload-icon">📄</div>
+                    <p>Click or drag a <strong>.txt</strong> or <strong>.pdf</strong> file</p>
+                    <div class="file-name" id="fname2"></div>
+                </div>
+                <div class="progress-bar" id="prog2"><div class="fill" id="progfill2"></div></div>
+
+                <div class="divider">— or paste names below —</div>
+
+                <textarea id="text2" placeholder="Paste names here, one per line..."></textarea>
+            </div>
+
+        </div>
+
+        <div class="actions">
+            <button class="btn-primary" onclick="compareLists()">🔍 Find Missing Names</button>
+            <button class="btn-secondary" onclick="downloadExcel()">⬇ Download Excel</button>
+            <button class="btn-secondary" onclick="clearAll()">✕ Clear All</button>
+        </div>
+    </div>
+
+    <div class="card" id="result" style="display:none;">
+        <div class="stats-row">
+            <div class="stat-card red">
+                <div class="stat-num" id="count1">0</div>
+                <div class="stat-label">Missing in File Names</div>
+            </div>
+            <div class="stat-card green">
+                <div class="stat-num" id="count2">0</div>
+                <div class="stat-label">Missing in RO Names</div>
+            </div>
+        </div>
+
+        <div class="result-lists">
+            <div class="list-box">
+                <h3>Missing in File Names</h3>
+                <div class="list-scroll red" id="missing1"></div>
+            </div>
+            <div class="list-box">
+                <h3>Missing in RO Names</h3>
+                <div class="list-scroll green" id="missing2"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    // Set PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    let missingInFileNames = [];
+    let missingInRONames = [];
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    function normalize(str) {
+        return str
+            .toUpperCase()
+            .replace(/\.DOC$/i, '')
+            .replace(/[^A-Z0-9]/g, '')
+            .trim();
+    }
+
+    function parseText(text) {
+        return text
+            .split(/\r?\n/)
+            .map(x => x.trim())
+            .filter(x => x !== '');
+    }
+
+    async function extractPdfText(file) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            const pageText = content.items.map(item => item.str).join('\n');
+            fullText += pageText + '\n';
+        }
+        return fullText;
+    }
+
+    function setProgress(num, pct) {
+        const bar = document.getElementById('prog' + num);
+        const fill = document.getElementById('progfill' + num);
+        bar.style.display = pct < 100 ? 'block' : 'none';
+        fill.style.width = pct + '%';
+    }
+
+    function setupUpload(inputId, textareaId, fnameId, num) {
+        const input = document.getElementById(inputId);
+        const zone = document.getElementById('zone' + num);
+
+        // Drag-over styling
+        zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+        zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); });
+
+        input.addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById(fnameId).textContent = file.name;
+
+            if (file.name.toLowerCase().endsWith('.pdf')) {
+                setProgress(num, 30);
+                showToast('Reading PDF...');
+                try {
+                    const text = await extractPdfText(file);
+                    setProgress(num, 100);
+                    document.getElementById(textareaId).value = text;
+                    showToast('✅ PDF loaded — ' + parseText(text).length + ' lines found');
+                } catch (err) {
+                    setProgress(num, 100);
+                    showToast('❌ Could not read PDF');
+                    console.error(err);
+                }
+            } else {
+                // Plain text file
+                const reader = new FileReader();
+                reader.onload = function(ev) {
+                    document.getElementById(textareaId).value = ev.target.result;
+                    showToast('✅ File loaded');
+                };
+                reader.readAsText(file);
+            }
+        });
+    }
+
+    setupUpload('file1', 'text1', 'fname1', 1);
+    setupUpload('file2', 'text2', 'fname2', 2);
+
+    function compareLists() {
+        const list1 = parseText(document.getElementById('text1').value);
+        const list2 = parseText(document.getElementById('text2').value);
+
+        if (!list1.length && !list2.length) {
+            showToast('⚠️ Both lists are empty!');
+            return;
+        }
+
+        const map1 = {};
+        const map2 = {};
+
+        list1.forEach(item => { map1[normalize(item)] = item; });
+        list2.forEach(item => { map2[normalize(item)] = item; });
+
+        missingInFileNames = [];
+        missingInRONames = [];
+
+        for (let key in map1) {
+            if (!map2[key]) missingInFileNames.push(map1[key]);
+        }
+
+        for (let key in map2) {
+            if (!map1[key]) missingInRONames.push(map2[key]);
+        }
+
+        renderResults();
+    }
+
+    function renderResults() {
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('count1').textContent = missingInFileNames.length;
+        document.getElementById('count2').textContent = missingInRONames.length;
+
+        const box1 = document.getElementById('missing1');
+        const box2 = document.getElementById('missing2');
+        box1.innerHTML = '';
+        box2.innerHTML = '';
+
+        if (missingInFileNames.length === 0) {
+            box1.innerHTML = '<div class="empty-msg">✅ Nothing missing</div>';
+        } else {
+            missingInFileNames.forEach(item => {
+                const d = document.createElement('div');
+                d.className = 'list-item';
+                d.textContent = item;
+                box1.appendChild(d);
+            });
+        }
+
+        if (missingInRONames.length === 0) {
+            box2.innerHTML = '<div class="empty-msg">✅ Nothing missing</div>';
+        } else {
+            missingInRONames.forEach(item => {
+                const d = document.createElement('div');
+                d.className = 'list-item';
+                d.textContent = item;
+                box2.appendChild(d);
+            });
+        }
+
+        document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        showToast('✅ Comparison complete');
+    }
+
+    function downloadExcel() {
+        if (!missingInFileNames.length && !missingInRONames.length) {
+            showToast('⚠️ Run comparison first!');
+            return;
+        }
+
+        const wb = XLSX.utils.book_new();
+
+        const ws1 = XLSX.utils.json_to_sheet(
+            missingInFileNames.map(x => ({ "Missing in File Names": x }))
+        );
+        const ws2 = XLSX.utils.json_to_sheet(
+            missingInRONames.map(x => ({ "Missing in RO Names": x }))
+        );
+
+        XLSX.utils.book_append_sheet(wb, ws1, "Missing_in_Filenames");
+        XLSX.utils.book_append_sheet(wb, ws2, "Missing_in_RONames");
+
+        XLSX.writeFile(wb, "missing_names_report.xlsx");
+        showToast('📥 Excel downloaded');
+    }
+
+    function clearAll() {
+        document.getElementById('text1').value = '';
+        document.getElementById('text2').value = '';
+        document.getElementById('fname1').textContent = '';
+        document.getElementById('fname2').textContent = '';
+        document.getElementById('file1').value = '';
+        document.getElementById('file2').value = '';
+        document.getElementById('result').style.display = 'none';
+        missingInFileNames = [];
+        missingInRONames = [];
+        showToast('🗑 Cleared');
+    }
+</script>
+
+</body>
+</html>

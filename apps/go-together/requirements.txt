@@ -1,0 +1,19 @@
+# Dependencies for Go Together App with Neon PostgreSQL
+
+# PostgreSQL database adapter
+psycopg2-binary>=2.9.9
+
+# Environment variable management
+python-dotenv>=1.0.0
+
+# For building desktop executable (optional - only needed for building)
+pyinstaller>=6.0.0
+
+# Python version requirement
+# Python 3.7+ required
+
+# Built-in libraries used (no installation needed):
+# - tkinter (built-in for GUI)
+# - hashlib (built-in for password hashing)
+# - datetime (built-in for timestamps)
+# - os (built-in)

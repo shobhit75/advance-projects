@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Folder → PDF · Batch Converter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --bg: #14120f;
+    --bg-vignette: #1c1912;
+    --paper: #f5efe3;
+    --paper-dim: #e9e0cd;
+    --ink: #221d16;
+    --ink-soft: #6b6053;
+    --stamp: #a63a2c;
+    --stamp-dark: #7e2b20;
+    --teal: #2c5f5a;
+    --line: #d8cdb4;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(ellipse at 20% -10%, var(--bg-vignette), var(--bg) 60%);
+    color: var(--paper);
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height:100vh;
+    padding: 56px 24px 80px;
+  }
+  .wrap{ max-width: 760px; margin: 0 auto; }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--stamp);
+    display:flex;
+    align-items:center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .eyebrow::before{
+    content:"";
+    width: 22px; height: 1px;
+    background: var(--stamp);
+    display:inline-block;
+  }
+  h1{
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: clamp(32px, 5vw, 48px);
+    line-height: 1.08;
+    margin: 0 0 18px;
+    color: var(--paper);
+    max-width: 14ch;
+  }
+  .sub{
+    font-size: 16px;
+    line-height: 1.6;
+    color: #b9b2a3;
+    max-width: 52ch;
+    margin: 0 0 40px;
+  }
+  .sub b{ color: var(--paper); font-weight: 600; }
+
+  .tray{
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 3px;
+    padding: 40px 32px;
+    position: relative;
+    box-shadow: 0 18px 40px -14px rgba(0,0,0,0.55);
+    border: 1px solid #00000010;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .tray::before{
+    content:"";
+    position:absolute; inset: 8px;
+    border: 1px dashed #00000022;
+    border-radius: 2px;
+    pointer-events:none;
+  }
+  .tray.drag{
+    transform: translateY(-2px);
+    box-shadow: 0 24px 50px -14px rgba(0,0,0,0.6);
+  }
+  .tray.drag::before{ border-color: var(--stamp); }
+  .tray-inner{ display:flex; align-items:center; gap: 22px; }
+  .tray svg{ flex-shrink:0; }
+  .tray-text .t1{ font-family:'Fraunces', serif; font-size: 20px; font-weight:600; margin: 0 0 4px; }
+  .tray-text .t2{ font-family:'IBM Plex Mono', monospace; font-size: 12.5px; color: var(--ink-soft); margin:0; }
+
+  .ledger{
+    margin-top: 34px;
+    background: var(--paper);
+    border-radius: 3px;
+    overflow: hidden;
+    box-shadow: 0 18px 40px -14px rgba(0,0,0,0.55);
+    display:none;
+  }
+  .ledger.show{ display:block; }
+  .ledger-head{
+    display:flex; justify-content: space-between; align-items:center;
+    padding: 20px 26px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .ledger-head h2{
+    font-family:'Fraunces', serif; font-size: 18px; margin:0; color: var(--ink);
+  }
+  .count{
+    font-family:'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--ink-soft);
+    letter-spacing: 0.04em;
+  }
+  .rows{ max-height: 320px; overflow-y: auto; }
+  .row{
+    display:grid;
+    grid-template-columns: 1fr auto 96px;
+    align-items:center;
+    gap: 14px;
+    padding: 11px 26px;
+    border-bottom: 1px solid #00000009;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--ink);
+  }
+  .row:last-child{ border-bottom:none; }
+  .fname{ overflow:hidden; text-overflow: ellipsis; white-space:nowrap; }
+  .badge{
+    font-size: 10px; letter-spacing:.06em; text-transform:uppercase;
+    padding: 3px 8px; border-radius: 20px; white-space:nowrap;
+    justify-self:start;
+  }
+  .badge.img{ background:#2c5f5a1a; color: var(--teal); }
+  .badge.pdf{ background:#a63a2c1a; color: var(--stamp); }
+  .badge.skip{ background:#00000012; color: var(--ink-soft); }
+  .status{ text-align:right; font-size: 11px; color: var(--ink-soft); }
+  .status.done{ color: var(--teal); font-weight:600; }
+  .status .stamp-mark{
+    display:inline-block;
+    color: var(--stamp);
+    border: 1.5px solid var(--stamp);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-weight: 700;
+    transform: rotate(-6deg);
+    animation: stampin .22s ease-out;
+  }
+  @keyframes stampin{
+    from{ opacity:0; transform: scale(1.6) rotate(-6deg); }
+    to{ opacity:1; transform: scale(1) rotate(-6deg); }
+  }
+
+  .action-row{
+    padding: 22px 26px 26px;
+    display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+  }
+  .go-btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--paper);
+    background: var(--stamp);
+    border: none;
+    padding: 14px 26px;
+    border-radius: 2px;
+    cursor:pointer;
+    transform: rotate(-1.2deg);
+    transition: transform .15s ease, background .15s ease;
+    box-shadow: 0 8px 18px -8px rgba(166,58,44,0.6);
+  }
+  .go-btn:hover{ transform: rotate(0deg); background: var(--stamp-dark); }
+  .go-btn:disabled{ opacity:.5; cursor:not-allowed; transform:none; }
+  .progress-wrap{ flex:1; min-width: 160px; }
+  .progress-track{
+    height: 4px; background: var(--line); border-radius: 2px; overflow:hidden;
+  }
+  .progress-fill{
+    height:100%; width:0%; background: var(--teal); transition: width .2s ease;
+  }
+  .progress-label{
+    font-family:'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft);
+    margin-top: 6px;
+  }
+  .note{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12px; color: #8a8272;
+    margin-top: 18px; line-height:1.6;
+  }
+  input[type=file]{ display:none; }
+  a.dl-link{ color: var(--teal); }
+  footer{
+    max-width: 760px; margin: 60px auto 0; text-align:center;
+    font-family:'IBM Plex Mono', monospace; font-size: 11px; color: #6b6558;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Batch Utility</div>
+  <h1>Turn every photo in a folder into a matching PDF.</h1>
+  <p class="sub">Choose a folder. <b>PDFs are kept exactly as they are.</b> Every image gets its own PDF, named after the image — <span style="color:var(--paper)">beach.jpg → beach.pdf</span>. Everything ships back to you as one zip, folder structure intact. Nothing leaves your browser.</p>
+
+  <div class="tray" id="tray">
+    <div class="tray-inner">
+      <svg width="46" height="46" viewBox="0 0 46 46" fill="none">
+        <rect x="6" y="10" width="28" height="30" rx="1.5" fill="#00000012"/>
+        <rect x="10" y="6" width="28" height="30" rx="1.5" fill="var(--paper-dim)" stroke="#00000022"/>
+        <line x1="15" y1="14" x2="33" y2="14" stroke="var(--stamp)" stroke-width="1.4"/>
+        <line x1="15" y1="19" x2="33" y2="19" stroke="#00000030" stroke-width="1.4"/>
+        <line x1="15" y1="24" x2="27" y2="24" stroke="#00000030" stroke-width="1.4"/>
+      </svg>
+      <div class="tray-text">
+        <p class="t1">Drop a folder here, or click to choose one</p>
+        <p class="t2">IMAGES → CONVERTED · PDFS → KEPT AS-IS</p>
+      </div>
+    </div>
+    <input type="file" id="fileInput" webkitdirectory directory multiple>
+  </div>
+
+  <div class="ledger" id="ledger">
+    <div class="ledger-head">
+      <h2>Manifest</h2>
+      <div class="count" id="count">0 files</div>
+    </div>
+    <div class="rows" id="rows"></div>
+    <div class="action-row">
+      <button class="go-btn" id="goBtn">Process &amp; download zip</button>
+      <div class="progress-wrap">
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-label" id="progressLabel">Waiting</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="note" id="finalNote"></p>
+</div>
+
+<footer>Runs entirely client-side · no files are uploaded anywhere</footer>
+
+<script>
+const IMAGE_EXT = ['jpg','jpeg','png','gif','bmp','webp'];
+const tray = document.getElementById('tray');
+const fileInput = document.getElementById('fileInput');
+const ledger = document.getElementById('ledger');
+const rowsEl = document.getElementById('rows');
+const countEl = document.getElementById('count');
+const goBtn = document.getElementById('goBtn');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+const finalNote = document.getElementById('finalNote');
+
+let entries = []; // {path, file, kind}
+
+tray.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', (e) => {
+  const files = Array.from(e.target.files).map(f => ({ path: f.webkitRelativePath || f.name, file: f }));
+  loadFiles(files);
+});
+
+tray.addEventListener('dragover', (e) => { e.preventDefault(); tray.classList.add('drag'); });
+tray.addEventListener('dragleave', () => tray.classList.remove('drag'));
+tray.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  tray.classList.remove('drag');
+  const items = e.dataTransfer.items;
+  const collected = [];
+  const promises = [];
+  for (let i = 0; i < items.length; i++) {
+    const entry = items[i].webkitGetAsEntry && items[i].webkitGetAsEntry();
+    if (entry) promises.push(walkEntry(entry, '', collected));
+  }
+  await Promise.all(promises);
+  if (collected.length) loadFiles(collected);
+});
+
+function walkEntry(entry, prefix, out) {
+  return new Promise((resolve) => {
+    if (entry.isFile) {
+      entry.file((file) => {
+        out.push({ path: prefix + entry.name, file });
+        resolve();
+      }, resolve);
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      const readBatch = () => {
+        reader.readEntries(async (results) => {
+          if (!results.length) { resolve(); return; }
+          await Promise.all(results.map(r => walkEntry(r, prefix + entry.name + '/', out)));
+          readBatch();
+        }, resolve);
+      };
+      readBatch();
+    } else {
+      resolve();
+    }
+  });
+}
+
+function classify(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  if (ext === 'pdf') return 'pdf';
+  if (IMAGE_EXT.includes(ext)) return 'img';
+  return 'skip';
+}
+
+function loadFiles(files) {
+  entries = files
+    .filter(f => !f.path.includes('/.')) // skip hidden files
+    .map(f => ({ ...f, kind: classify(f.file.name), status: 'pending' }));
+
+  renderLedger();
+}
+
+function renderLedger() {
+  rowsEl.innerHTML = '';
+  entries.forEach((e, i) => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.id = 'row-' + i;
+    const badgeClass = e.kind === 'img' ? 'img' : e.kind === 'pdf' ? 'pdf' : 'skip';
+    const badgeText = e.kind === 'img' ? 'image' : e.kind === 'pdf' ? 'pdf' : 'skip';
+    row.innerHTML = `
+      <span class="fname">${escapeHtml(e.path)}</span>
+      <span class="badge ${badgeClass}">${badgeText}</span>
+      <span class="status" id="status-${i}">${e.kind === 'skip' ? 'not converted' : 'pending'}</span>
+    `;
+    rowsEl.appendChild(row);
+  });
+  const convertible = entries.filter(e => e.kind !== 'skip').length;
+  countEl.textContent = `${entries.length} files · ${convertible} will be in the zip`;
+  ledger.classList.add('show');
+  finalNote.textContent = '';
+  progressFill.style.width = '0%';
+  progressLabel.textContent = 'Waiting';
+  goBtn.disabled = convertible === 0;
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+goBtn.addEventListener('click', processAll);
+
+async function processAll() {
+  goBtn.disabled = true;
+  const zip = new JSZip();
+  const workable = entries.filter(e => e.kind !== 'skip');
+  let done = 0;
+
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    if (e.kind === 'skip') continue;
+    const statusEl = document.getElementById('status-' + i);
+    try {
+      if (e.kind === 'pdf') {
+        const buf = await e.file.arrayBuffer();
+        zip.file(e.path, buf);
+      } else if (e.kind === 'img') {
+        const pdfBlob = await imageFileToPdfBlob(e.file);
+        const newPath = e.path.replace(/\.[^./]+$/, '') + '.pdf';
+        zip.file(newPath, pdfBlob);
+      }
+      statusEl.innerHTML = '<span class="stamp-mark">PDF ✓</span>';
+    } catch (err) {
+      statusEl.textContent = 'failed';
+      statusEl.style.color = '#a63a2c';
+      console.error('Failed on', e.path, err);
+    }
+    done++;
+    const pct = Math.round((done / workable.length) * 100);
+    progressFill.style.width = pct + '%';
+    progressLabel.textContent = `${done} / ${workable.length} processed`;
+    await new Promise(r => setTimeout(r, 0));
+  }
+
+  progressLabel.textContent = 'Zipping…';
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'converted-folder.zip';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  progressLabel.textContent = 'Done';
+  finalNote.innerHTML = `Zip downloaded. <a class="dl-link" href="${url}" download="converted-folder.zip">Download again</a> if you missed it.`;
+  goBtn.disabled = false;
+}
+
+function imageFileToPdfBlob(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+
+        const { jsPDF } = window.jspdf;
+        const orientation = canvas.width >= canvas.height ? 'l' : 'p';
+        const pdf = new jsPDF({
+          orientation,
+          unit: 'px',
+          format: [canvas.width, canvas.height],
+        });
+        pdf.addImage(dataUrl, 'JPEG', 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        resolve(pdf.output('blob'));
+      } catch (err) {
+        URL.revokeObjectURL(url);
+        reject(err);
+      }
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+</script>
+</body>
+</html>

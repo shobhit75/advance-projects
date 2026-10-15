@@ -1,0 +1,19 @@
+# Dependencies and generated output
+node_modules/
+.next/
+dist/
+build/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+
+.gradle/
+local.properties
+

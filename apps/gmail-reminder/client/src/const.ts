@@ -1,0 +1,1 @@
+export const getLoginUrl = () => "http://localhost:3002";

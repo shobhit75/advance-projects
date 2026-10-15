@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebSheet — Hindi Transliterator</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Space+Mono:wght@400;700&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0f14;--sur:#13161e;--sur2:#1a1e29;--bdr:#252a38;--bdr2:#2e3447;
+  --grn:#00e5a0;--blu:#0096ff;--org:#ff9f43;--red:#ff6b35;
+  --txt:#c8d0e0;--dim:#5a6278;--brt:#eef0f6;--hdr:#171b26;--alt:rgba(255,255,255,0.018);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'IBM Plex Mono',monospace;background:var(--bg);color:var(--txt);
+  height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.bar{display:flex;align-items:center;gap:10px;padding:0 14px;height:46px;
+  background:var(--sur);border-bottom:1px solid var(--bdr);flex-shrink:0;}
+.logo{font-family:'Space Mono',monospace;font-weight:700;font-size:13px;
+  color:var(--grn);letter-spacing:.08em;white-space:nowrap;}
+.logo s{color:var(--dim);text-decoration:none;}
+.logo e{font-style:normal;color:var(--org);margin-left:6px;
+  font-family:'Noto Sans Devanagari',sans-serif;font-size:12px;}
+.dv{width:1px;height:20px;background:var(--bdr2);flex-shrink:0;}
+.btns{display:flex;gap:4px;}
+.btn{background:transparent;border:1px solid var(--bdr2);color:var(--txt);
+  font-family:'IBM Plex Mono',monospace;font-size:11px;padding:4px 10px;
+  border-radius:3px;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.btn:hover{background:var(--sur2);border-color:var(--grn);color:var(--grn);}
+.btn.r{border-color:var(--red);color:var(--red);}
+.btn.r:hover{background:rgba(255,107,53,.1);}
+.xbtn{display:flex;align-items:center;gap:6px;
+  background:linear-gradient(135deg,rgba(255,159,67,.15),rgba(255,159,67,.04));
+  border:1px solid var(--org);color:var(--org);font-family:'Space Mono',monospace;
+  font-size:11px;font-weight:700;padding:5px 14px;border-radius:4px;cursor:pointer;
+  transition:all .2s;white-space:nowrap;flex-shrink:0;}
+.xbtn:hover{background:rgba(255,159,67,.22);box-shadow:0 0 16px rgba(255,159,67,.25);transform:translateY(-1px);}
+.xbtn:active{transform:translateY(0);}
+.xbtn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+.xbtn.spin{animation:pb 1s ease-in-out infinite;}
+@keyframes pb{0%,100%{box-shadow:0 0 6px rgba(255,159,67,.2)}50%{box-shadow:0 0 20px rgba(255,159,67,.5)}}
+.cref{background:var(--sur2);border:1px solid var(--bdr2);color:var(--grn);
+  font-family:'Space Mono',monospace;font-size:11px;padding:4px 8px;
+  border-radius:3px;width:72px;text-align:center;flex-shrink:0;}
+.fbar{flex:1;min-width:0;background:var(--sur2);border:1px solid var(--bdr2);
+  color:var(--brt);font-family:'IBM Plex Mono',monospace;font-size:12px;
+  padding:4px 10px;border-radius:3px;outline:none;}
+.fbar:focus{border-color:var(--blu);}
+.cfg{display:flex;align-items:center;gap:10px;padding:5px 14px;
+  background:rgba(255,159,67,.03);border-bottom:1px solid var(--bdr);
+  font-size:11px;flex-shrink:0;flex-wrap:wrap;}
+.cl{color:var(--dim);white-space:nowrap;}
+.cs{background:var(--sur2);border:1px solid var(--bdr2);color:var(--brt);
+  font-family:'IBM Plex Mono',monospace;font-size:11px;padding:3px 8px;
+  border-radius:3px;cursor:pointer;outline:none;}
+.cs:focus{border-color:var(--org);}
+.arr{color:var(--org);}
+.nck{display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--dim);font-size:11px;margin-left:4px;}
+.nck input{cursor:pointer;accent-color:var(--org);}
+.nck .dk{color:#a78bfa;font-family:'Noto Sans Devanagari',sans-serif;font-size:12px;}
+/* mode toggle */
+.mtog{display:flex;align-items:center;gap:6px;margin-left:6px;}
+.mtog label{color:var(--dim);font-size:11px;white-space:nowrap;}
+.mtog select{background:var(--sur2);border:1px solid var(--bdr2);color:var(--brt);
+  font-family:'IBM Plex Mono',monospace;font-size:11px;padding:2px 6px;
+  border-radius:3px;cursor:pointer;outline:none;}
+.pw{display:none;align-items:center;gap:8px;margin-left:auto;}
+.pw.on{display:flex;}
+.po{width:130px;height:4px;background:var(--bdr2);border-radius:2px;overflow:hidden;}
+.pi{height:100%;background:var(--org);border-radius:2px;width:0%;transition:width .3s;}
+.pt{color:var(--org);font-size:10px;white-space:nowrap;}
+/* paste bar */
+.pastebar{display:flex;align-items:center;gap:10px;padding:4px 14px;
+  background:#0a1520;border-bottom:1px solid var(--bdr);flex-shrink:0;}
+.pastebar label{color:var(--dim);font-size:11px;white-space:nowrap;flex-shrink:0;}
+.pastebox{flex:1;background:#0d1b2a;border:1px solid var(--blu);color:var(--brt);
+  font-family:'IBM Plex Mono',monospace;font-size:11px;padding:4px 10px;
+  border-radius:3px;outline:none;resize:none;height:28px;overflow:hidden;}
+.pastebox:focus{border-color:var(--grn);box-shadow:0 0 8px rgba(0,229,160,.2);}
+.pastebox::placeholder{color:var(--dim);}
+.pastego{background:var(--grn);color:#000;font-family:'Space Mono',monospace;
+  font-size:11px;font-weight:700;padding:4px 14px;border:none;border-radius:3px;
+  cursor:pointer;white-space:nowrap;flex-shrink:0;transition:all .15s;}
+.pastego:hover{background:#00ffb3;}
+.hint2{color:var(--dim);font-size:10px;white-space:nowrap;}
+.hint2 kbd{background:var(--sur2);border:1px solid var(--bdr2);color:var(--brt);
+  font-family:'IBM Plex Mono',monospace;font-size:10px;padding:1px 5px;border-radius:3px;}
+.main{flex:1;overflow:hidden;display:flex;}
+.sc{flex:1;overflow:auto;}
+.sc::-webkit-scrollbar{width:8px;height:8px;}
+.sc::-webkit-scrollbar-track{background:var(--sur);}
+.sc::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:4px;}
+table{border-collapse:collapse;font-size:12px;table-layout:fixed;min-width:100%;}
+table th{position:sticky;top:0;background:var(--hdr);border:1px solid var(--bdr);
+  padding:0 4px;height:28px;text-align:center;color:var(--dim);font-weight:600;
+  font-size:11px;z-index:2;white-space:nowrap;cursor:pointer;
+  transition:background .1s;min-width:130px;width:130px;user-select:none;}
+table th:not(.rh):hover{background:#1e2230;color:var(--brt);}
+table th.rh{position:sticky;left:0;width:44px;min-width:44px;z-index:3;cursor:default;}
+table th.rh:hover{background:var(--hdr);}
+table th.en{color:var(--blu)!important;border-bottom:2px solid var(--blu)!important;}
+table th.hi{color:var(--org)!important;border-bottom:2px solid var(--org)!important;}
+table th.hs{background:#1c2a3a!important;color:var(--blu)!important;border-bottom:2px solid var(--blu)!important;}
+table td{border:1px solid var(--bdr);padding:0;height:26px;
+  min-width:130px;width:130px;vertical-align:middle;position:relative;}
+table tr:nth-child(even) td{background:var(--alt);}
+table td.rh{position:sticky;left:0;background:var(--hdr);color:var(--dim);
+  text-align:center;font-size:11px;z-index:1;min-width:44px;width:44px;user-select:none;}
+table td.cs{background:rgba(0,229,160,.1)!important;}
+table td.xs{background:rgba(0,229,160,.14)!important;outline:1.5px solid rgba(0,229,160,.55);outline-offset:-1px;}
+table td.ac{outline:2px solid var(--blu)!important;outline-offset:-1px;z-index:5;}
+table td.hc{background:rgba(255,159,67,.07)!important;}
+table td.hc.cs{background:rgba(255,159,67,.16)!important;}
+table td.hc.xs{background:rgba(255,159,67,.2)!important;}
+table td.tl{animation:tla .7s ease-in-out infinite;}
+table td.td{animation:tda .5s ease-out forwards;}
+@keyframes tla{0%,100%{background:rgba(255,159,67,.08)!important}50%{background:rgba(255,159,67,.28)!important}}
+@keyframes tda{0%{background:rgba(255,159,67,.45)!important}100%{background:rgba(255,159,67,.10)!important}}
+input.ci{width:100%;height:100%;background:transparent;border:none;outline:none;
+  color:var(--brt);font-family:'IBM Plex Mono',monospace;font-size:12px;padding:0 6px;cursor:default;}
+input.ci.hf{font-family:'Noto Sans Devanagari','IBM Plex Mono',monospace;font-size:13px;color:var(--org);}
+input.ci.nf{font-family:'Noto Sans Devanagari','IBM Plex Mono',monospace;font-size:13px;color:#a78bfa;}
+input.ci:focus{cursor:text;background:rgba(255,255,255,.02);}
+.sbar{height:24px;display:flex;align-items:center;gap:18px;padding:0 14px;
+  background:var(--sur);border-top:1px solid var(--bdr);font-size:10.5px;
+  color:var(--dim);flex-shrink:0;}
+.sbar span{color:var(--brt);}
+.sbar .sr{margin-left:auto;} .sbar .sr span{color:var(--org);}
+.flash{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  background:rgba(0,229,160,.12);border:1px solid var(--grn);color:var(--grn);
+  font-family:'Space Mono',monospace;font-size:12px;padding:10px 24px;
+  border-radius:4px;pointer-events:none;opacity:0;transition:opacity .2s;z-index:999;}
+.flash.on{opacity:1;}
+.toast{position:fixed;bottom:34px;left:50%;transform:translateX(-50%) translateY(10px);
+  background:var(--sur2);border:1px solid var(--org);color:var(--org);
+  font-family:'Space Mono',monospace;font-size:11px;padding:7px 18px;
+  border-radius:4px;opacity:0;transition:all .3s;pointer-events:none;z-index:999;
+  white-space:nowrap;box-shadow:0 4px 20px rgba(255,159,67,.15);}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="logo">WEB<s>SHEET</s><e>हिन्दी</e></div>
+  <div class="dv"></div>
+  <div class="btns">
+    <button class="btn" onclick="loadSample()">Load Sample</button>
+    <button class="btn" onclick="clearAll()">Clear</button>
+    <button class="btn r" onclick="exportCSV()">Export CSV</button>
+  </div>
+  <div class="dv"></div>
+  <button class="xbtn" id="xbtn" onclick="runXlit()">🇮🇳 Transliterate → हिन्दी</button>
+  <div class="dv"></div>
+  <input class="cref" id="cref" value="A1" readonly>
+  <input class="fbar" id="fbar" placeholder="Cell value…">
+</div>
+
+<div class="cfg">
+  <span class="cl">English col:</span>
+  <select class="cs" id="src"></select>
+  <span class="arr">→ हिन्दी →</span>
+  <select class="cs" id="dst"></select>
+  <span class="cl" style="margin-left:6px">From row:</span>
+  <select class="cs" id="srow">
+    <option value="1">Row 2 (skip header)</option>
+    <option value="0">Row 1</option>
+  </select>
+  <div class="mtog">
+    <label>Mode:</label>
+    <select class="cs" id="mode">
+      <option value="xlit">Transliterate (same sound)</option>
+      <option value="trans">Translate (meaning in Hindi)</option>
+    </select>
+  </div>
+  <label class="nck">
+    <input type="checkbox" id="nchk" checked>
+    Numbers→Hindi &nbsp;<span class="dk">५→पाँच</span>
+  </label>
+  <div class="pw" id="pw">
+    <div class="po"><div class="pi" id="pi"></div></div>
+    <span class="pt" id="pt">0/0</span>
+  </div>
+</div>
+
+<div class="pastebar">
+  <label>📋 Paste from Excel:</label>
+  <textarea class="pastebox" id="pastebox" placeholder="Click here → Ctrl+V to paste from Excel/Sheets → click Apply" rows="1"></textarea>
+  <button class="pastego" onclick="applyFromBox()">Apply →</button>
+  <span class="hint2"><kbd>Ctrl+C</kbd> copy &nbsp;|&nbsp; <kbd>Click col header</kbd> select column &nbsp;|&nbsp; <kbd>Ctrl+A</kbd> all</span>
+</div>
+
+<div class="main"><div class="sc"><table id="G"></table></div></div>
+
+<div class="sbar">
+  <div>Cell: <span id="sc">A1</span></div>
+  <div>Sel: <span id="ss">—</span></div>
+  <div>Sum: <span id="sm">—</span></div>
+  <div>Avg: <span id="av">—</span></div>
+  <div class="sr">Transliterated: <span id="tc">0</span></div>
+</div>
+
+<div class="flash" id="fl">Copied ✓</div>
+<div class="toast" id="ts"></div>
+
+<script>
+// ── Hindi number words ─────────────────────────────────────────
+var H=['','एक','दो','तीन','चार','पाँच','छह','सात','आठ','नौ','दस','ग्यारह','बारह','तेरह','चौदह','पंद्रह','सोलह','सत्रह','अठारह','उन्नीस','बीस','इक्कीस','बाईस','तेईस','चौबीस','पच्चीस','छब्बीस','सत्ताईस','अट्ठाईस','उनतीस','तीस','इकतीस','बत्तीस','तैंतीस','चौंतीस','पैंतीस','छत्तीस','सैंतीस','अड़तीस','उनतालीस','चालीस','इकतालीस','बयालीस','तैंतालीस','चवालीस','पैंतालीस','छियालीस','सैंतालीस','अड़तालीस','उनचास','पचास','इक्यावन','बावन','तिरपन','चौवन','पचपन','छप्पन','सत्तावन','अट्ठावन','उनसठ','साठ','इकसठ','बासठ','तिरसठ','चौंसठ','पैंसठ','छियासठ','सड़सठ','अड़सठ','उनहत्तर','सत्तर','इकहत्तर','बहत्तर','तिहत्तर','चौहत्तर','पचहत्तर','छिहत्तर','सतहत्तर','अठहत्तर','उन्यासी','अस्सी','इक्यासी','बयासी','तिरासी','चौरासी','पचासी','छियासी','सत्तासी','अट्ठासी','नवासी','नब्बे','इक्यानवे','बानवे','तिरानवे','चौरानवे','पचानवे','छियानवे','सत्तानवे','अट्ठानवे','निन्यानवे'];
+function numHi(n){
+  var x=parseInt(n);
+  if(isNaN(x)||x<0) return null;
+  if(x===0) return 'शून्य';
+  if(x<100) return H[x];
+  if(x<1000){var h=Math.floor(x/100),r=x%100;return(h===1?'':H[h])+'सौ'+(r?' '+H[r]:'');}
+  if(x<100000){var h=Math.floor(x/1000),r=x%1000;return numHi(h)+' हज़ार'+(r?' '+numHi(r):'');}
+  if(x<10000000){var h=Math.floor(x/100000),r=x%100000;return numHi(h)+' लाख'+(r?' '+numHi(r):'');}
+  return String(x);
+}
+
+// ── Google Translate (no CORS issue, no API key needed) ────────
+// Uses the free public endpoint — works from file:// in Edge & Chrome
+function googleTranslate(text, targetLang, callback) {
+  var encoded = encodeURIComponent(text);
+  var url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl='
+    + targetLang + '&dt=t&q=' + encoded;
+
+  var script = document.createElement('script');
+  var cbName = '_gtcb' + Date.now() + Math.floor(Math.random()*9999);
+
+  // Google doesn't support JSONP natively for this endpoint,
+  // so we use fetch with no-cors mode and parse via XHR instead
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4) {
+      if (xhr.status === 200) {
+        try {
+          var resp = JSON.parse(xhr.responseText);
+          // Response format: [[["translated","original",...],...],...] 
+          var result = '';
+          if (resp && resp[0]) {
+            for (var i = 0; i < resp[0].length; i++) {
+              if (resp[0][i] && resp[0][i][0]) result += resp[0][i][0];
+            }
+          }
+          callback(null, result || '—');
+        } catch(e) { callback('Parse error', null); }
+      } else {
+        callback('HTTP ' + xhr.status, null);
+      }
+    }
+  };
+  xhr.onerror = function() { callback('Network error', null); };
+  xhr.send();
+}
+
+// Transliterate: English sounds → Devanagari (गुड मॉर्निंग)
+// Uses Google Input Tools API word-by-word
+function googleInputTranslit(text, callback) {
+  var words = text.trim().split(/\s+/);
+  var results = [];
+  var idx = 0;
+  function next() {
+    if (idx >= words.length) { callback(null, results.join(' ')); return; }
+    var word = words[idx];
+    var url = 'https://inputtools.google.com/request?text=' + encodeURIComponent(word) + '&itc=hi-t-i0-und&num=1';
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === 4) {
+        if (xhr.status === 200) {
+          try {
+            var resp = JSON.parse(xhr.responseText);
+            // Response: ["SUCCESS", [["word", ["transliteration", ...]]]]
+            var t = resp[1][0][1][0];
+            results.push(t);
+          } catch(e) { results.push(word); }
+        } else { results.push(word); }
+        idx++; next();
+      }
+    };
+    xhr.onerror = function() { results.push(word); idx++; next(); };
+    xhr.send();
+  }
+  next();
+}
+
+// Transliterate: en → hi (Devanagari pronunciation)
+// Translate: en → hi (meaning)
+function processText(text, mode, callback) {
+  if (mode === 'trans') {
+    // Full translation en→hi (meaning)
+    googleTranslate(text, 'hi', callback);
+  } else {
+    // Transliteration: English sounds written in Devanagari
+    googleInputTranslit(text, callback);
+  }
+}
+
+// ── State ──────────────────────────────────────────────────────
+var NR=40,NC=10,LL='ABCDEFGHIJ'.split('');
+var D=[];for(var i=0;i<NR;i++)D.push(new Array(NC).fill(''));
+var aR=0,aC=0,mode='cell',cA=0,cB=0;
+var r1=0,r2=0,c1=0,c2=0,drag=false,edR=-1,edC=-1,xlN=0;
+
+function $(id){return document.getElementById(id);}
+function td(r,c){return $('T'+r+'_'+c);}
+function inp(r,c){return $('I'+r+'_'+c);}
+function getSrc(){return parseInt($('src').value)||0;}
+function getDst(){return parseInt($('dst').value)||1;}
+function numMode(){return $('nchk').checked;}
+function xlMode(){return $('mode').value;}
+
+function toast(m){var t=$('ts');t.textContent=m;t.classList.add('on');setTimeout(function(){t.classList.remove('on');},3000);}
+function showFlash(){var f=$('fl');f.classList.add('on');setTimeout(function(){f.classList.remove('on');},1200);}
+
+// ── Grid ───────────────────────────────────────────────────────
+function buildGrid(){
+  var h='<thead><tr><th class="rh"></th>';
+  for(var i=0;i<NC;i++) h+='<th id="H'+i+'" data-c="'+i+'">'+LL[i]+'</th>';
+  h+='</tr></thead><tbody>';
+  for(var r=0;r<NR;r++){
+    h+='<tr><td class="rh">'+(r+1)+'</td>';
+    for(var c=0;c<NC;c++){
+      h+='<td id="T'+r+'_'+c+'" data-r="'+r+'" data-c="'+c+'">'
+        +'<input class="ci" id="I'+r+'_'+c+'" tabindex="0"'
+        +' onfocus="onFoc('+r+','+c+')" onblur="onBlr('+r+','+c+')"'
+        +' oninput="onInp('+r+','+c+',this.value)"></td>';
+    }
+    h+='</tr>';
+  }
+  h+='</tbody>';
+  $('G').innerHTML=h;
+  $('G').querySelector('thead').addEventListener('mousedown',function(e){
+    var th=e.target.closest('th[data-c]');if(!th)return;
+    e.preventDefault();var c=parseInt(th.dataset.c);
+    mode='col';if(e.shiftKey){cB=c;}else{cA=cB=c;}
+    aR=0;aC=c;redraw();updRef();updStatus();
+  });
+  $('G').querySelector('tbody').addEventListener('mousedown',function(e){
+    var cell=e.target.closest('td[data-r]');if(!cell)return;
+    var r=parseInt(cell.dataset.r),c=parseInt(cell.dataset.c);
+    mode='cell';drag=true;r1=r2=r;c1=c2=c;aR=r;aC=c;redraw();updFbar();
+  });
+  $('G').querySelector('tbody').addEventListener('mousemove',function(e){
+    if(!drag)return;var cell=e.target.closest('td[data-r]');
+    if(cell){r2=parseInt(cell.dataset.r);c2=parseInt(cell.dataset.c);redraw();}
+  });
+  document.addEventListener('mouseup',function(){drag=false;});
+}
+
+function styleHdrs(){
+  var src=getSrc(),dst=getDst(),mn=Math.min(cA,cB),mx=Math.max(cA,cB);
+  for(var c=0;c<NC;c++){
+    var h=$('H'+c);if(!h)continue;
+    var sel=mode==='col'&&c>=mn&&c<=mx;
+    h.className=sel?'hs':(c===src?'en':(c===dst?'hi':''));
+  }
+}
+function styleCells(){
+  var dst=getDst();
+  for(var r=0;r<NR;r++)for(var c=0;c<NC;c++){var t=td(r,c);if(t)t.classList.toggle('hc',c===dst);}
+}
+function clearSel(){document.querySelectorAll('td.cs,td.xs,td.ac').forEach(function(t){t.classList.remove('cs','xs','ac');});}
+function redraw(){
+  clearSel();styleHdrs();
+  if(mode==='col'){
+    var mn=Math.min(cA,cB),mx=Math.max(cA,cB);
+    for(var r=0;r<NR;r++)for(var c=mn;c<=mx;c++){var t=td(r,c);if(t)t.classList.add('cs');}
+    var ref=mn===mx?LL[mn]:LL[mn]+':'+LL[mx];$('cref').value=ref;$('sc').textContent=ref;
+  }else{
+    var mr=Math.min(r1,r2),xr=Math.max(r1,r2),mc=Math.min(c1,c2),xc=Math.max(c1,c2);
+    for(var r=mr;r<=xr;r++)for(var c=mc;c<=xc;c++){var t=td(r,c);if(t)t.classList.add('xs');}
+    var t=td(aR,aC);if(t)t.classList.add('ac');updRef();
+  }
+  updStatus();
+}
+function selAll(){mode='col';cA=0;cB=NC-1;aR=0;aC=0;redraw();updStatus();}
+function updRef(){var s=LL[aC]+(aR+1);$('cref').value=s;$('sc').textContent=s;}
+function updFbar(){$('fbar').value=D[aR][aC]||'';}
+function updStatus(){
+  var mr,xr,mc,xc;
+  if(mode==='col'){mr=0;xr=NR-1;mc=Math.min(cA,cB);xc=Math.max(cA,cB);}
+  else{mr=Math.min(r1,r2);xr=Math.max(r1,r2);mc=Math.min(c1,c2);xc=Math.max(c1,c2);}
+  var tot=(xr-mr+1)*(xc-mc+1);
+  $('ss').textContent=tot>1?(xr-mr+1)+'R x '+(xc-mc+1)+'C':'—';
+  var nums=[];
+  for(var r=mr;r<=xr;r++)for(var c=mc;c<=xc;c++){var v=parseFloat(D[r][c]);if(!isNaN(v))nums.push(v);}
+  if(nums.length){
+    var s=nums.reduce(function(a,b){return a+b;},0);
+    $('sm').textContent=s.toLocaleString(undefined,{maximumFractionDigits:4});
+    $('av').textContent=(s/nums.length).toLocaleString(undefined,{maximumFractionDigits:4});
+  }else{$('sm').textContent='—';$('av').textContent='—';}
+}
+
+function setVal(r,c,v){D[r][c]=v;renderCell(r,c);}
+function renderCell(r,c){
+  var el=inp(r,c);if(!el)return;
+  var dst=getDst(),raw=D[r][c]||'';
+  if(edR===r&&edC===c){el.value=raw;return;}
+  if(numMode()&&raw!==''&&/^\d+$/.test(raw.trim())){
+    var w=numHi(raw.trim());if(w){el.value=w;el.className='ci nf';return;}
+  }
+  el.className='ci'+(c===dst?' hf':'');
+  el.value=raw;
+}
+function renderAll(){for(var r=0;r<NR;r++)for(var c=0;c<NC;c++)renderCell(r,c);}
+
+function onFoc(r,c){
+  edR=r;edC=c;aR=r;aC=c;mode='cell';r1=r2=r;c1=c2=c;
+  redraw();inp(r,c).value=D[r][c]||'';
+  var t=td(r,c);if(t)t.classList.add('ac');updFbar();
+}
+function onBlr(r,c){edR=-1;edC=-1;renderCell(r,c);}
+function onInp(r,c,v){D[r][c]=v;$('fbar').value=v;}
+$('fbar').addEventListener('input',function(){setVal(aR,aC,this.value);});
+
+// ── Keyboard ───────────────────────────────────────────────────
+document.addEventListener('keydown',function(e){
+  var ctrl=e.ctrlKey||e.metaKey;
+  if(ctrl&&e.key==='c'){e.preventDefault();doCopy();return;}
+  if(ctrl&&e.key==='a'){e.preventDefault();selAll();return;}
+  if(edR>=0)return;
+  var nav={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]};
+  if(nav[e.key]){e.preventDefault();goTo(aR+nav[e.key][0],aC+nav[e.key][1]);}
+  if(e.key==='Enter'){e.preventDefault();goTo(aR+1,aC);}
+  if(e.key==='Tab'){e.preventDefault();goTo(aR,aC+1);}
+});
+
+// ── Paste (native event) ───────────────────────────────────────
+document.addEventListener('paste',function(e){
+  if(e.target&&e.target.id==='pastebox')return;
+  var cd=e.clipboardData||window.clipboardData;if(!cd)return;
+  var txt=cd.getData('text/plain')||cd.getData('text');
+  if(!txt||txt.trim()==='')return;
+  e.preventDefault();doPaste(txt);
+});
+$('pastebox').addEventListener('paste',function(){
+  setTimeout(function(){
+    var txt=$('pastebox').value;
+    if(txt&&txt.trim()!==''){doPaste(txt);$('pastebox').value='';}
+  },50);
+});
+function applyFromBox(){
+  var txt=$('pastebox').value;
+  if(!txt||txt.trim()===''){toast('Paste into the blue box first, then click Apply');return;}
+  doPaste(txt);$('pastebox').value='';
+}
+function doPaste(txt){
+  var lines=txt.split('\n'),rows=[];
+  for(var i=0;i<lines.length;i++){
+    var line=lines[i].replace(/\r/g,'');
+    if(i===lines.length-1&&line==='')continue;
+    rows.push(line.split('\t'));
+  }
+  if(rows.length===0)return;
+  var pr=(mode==='col')?0:Math.min(r1,r2);
+  var pc=(mode==='col')?Math.min(cA,cB):Math.min(c1,c2);
+  var n=0;
+  for(var dr=0;dr<rows.length;dr++){
+    for(var dc=0;dc<rows[dr].length;dc++){
+      var r=pr+dr,c=pc+dc;
+      if(r<NR&&c<NC){setVal(r,c,rows[dr][dc]);n++;}
+    }
+  }
+  if(n>0)toast('Pasted '+rows.length+' rows x '+rows[0].length+' cols');
+}
+function goTo(r,c){
+  r=Math.max(0,Math.min(NR-1,r));c=Math.max(0,Math.min(NC-1,c));
+  aR=r;aC=c;mode='cell';r1=r2=r;c1=c2=c;
+  redraw();updFbar();var el=inp(r,c);if(el)el.focus();
+}
+
+// ── Copy ───────────────────────────────────────────────────────
+function doCopy(){
+  var mr,xr,mc,xc;
+  if(mode==='col'){mr=0;xr=NR-1;mc=Math.min(cA,cB);xc=Math.max(cA,cB);}
+  else{mr=Math.min(r1,r2);xr=Math.max(r1,r2);mc=Math.min(c1,c2);xc=Math.max(c1,c2);}
+  var lines=[];
+  for(var r=mr;r<=xr;r++){
+    var row=[];for(var c=mc;c<=xc;c++)row.push(D[r][c]||'');
+    lines.push(row.join('\t'));
+  }
+  var txt=lines.join('\n');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(showFlash).catch(function(){fallbackCopy(txt);});
+  }else{fallbackCopy(txt);}
+}
+function fallbackCopy(txt){
+  var ta=document.createElement('textarea');ta.value=txt;
+  ta.style.cssText='position:fixed;opacity:0;top:0;left:0;';
+  document.body.appendChild(ta);ta.select();
+  document.execCommand('copy');document.body.removeChild(ta);showFlash();
+}
+
+// ── Transliterate / Translate ──────────────────────────────────
+var busy=false;
+
+function runXlit(){
+  if(busy)return;
+  var src=getSrc(),dst=getDst(),skip=parseInt($('srow').value)||0,m=xlMode();
+
+  // Numbers first (instant, local)
+  for(var r=skip;r<NR;r++){
+    var v=(D[r][src]||'').trim();
+    if(v&&numMode()&&/^\d+$/.test(v)){var w=numHi(v);if(w){setVal(r,dst,w);xlN++;}}
+  }
+  $('tc').textContent=xlN;
+
+  // Collect text rows
+  var todo=[];
+  for(var r=skip;r<NR;r++){
+    var v=(D[r][src]||'').trim();
+    if(v&&!/^\d+$/.test(v))todo.push({r:r,v:v});
+  }
+  if(!todo.length){toast('Done! Numbers converted, no text rows found.');return;}
+
+  busy=true;
+  var btn=$('xbtn');
+  btn.disabled=true;btn.classList.add('spin');
+  btn.textContent=(m==='trans'?'Translating...':'Transliterating...');
+  $('pw').classList.add('on');
+
+  var idx=0;
+  function next(){
+    if(idx>=todo.length){
+      busy=false;btn.disabled=false;btn.classList.remove('spin');
+      btn.innerHTML='🇮🇳 Transliterate → हिन्दी';
+      $('pw').classList.remove('on');$('pi').style.width='0%';
+      toast('Done! '+todo.length+' cells processed.');
+      return;
+    }
+    var row=todo[idx],t=td(row.r,dst);
+    if(t){t.classList.remove('td');t.classList.add('tl');}
+    processText(row.v, m, function(err, result){
+      if(err){setVal(row.r,dst,'Error: '+err);}
+      else{
+        setVal(row.r,dst,result);
+        if(t){t.classList.remove('tl');t.classList.add('td');
+          (function(el){setTimeout(function(){el.classList.remove('td');},900);})(t);}
+        xlN++;
+      }
+      if(t)t.classList.remove('tl');
+      idx++;
+      $('pi').style.width=Math.round(idx/todo.length*100)+'%';
+      $('pt').textContent=idx+'/'+todo.length;
+      $('tc').textContent=xlN;
+      // Small delay to avoid rate limiting
+      setTimeout(next,200);
+    });
+  }
+  next();
+}
+
+// ── Toolbar ────────────────────────────────────────────────────
+function loadSample(){
+  var rows=[['English','Hindi'],['Good morning',''],['How are you?',''],
+    ['My name is Raj',''],['Welcome to India',''],['Computer',''],
+    ['Mobile phone',''],['Thank you',''],['Water please',''],
+    ['Where is the station?',''],['Have a nice day',''],
+    [1,''],[5,''],[12,''],[42,''],[100,''],[500,''],[1000,''],[1500,''],[75,''],[99,'']];
+  for(var i=0;i<rows.length&&i<NR;i++){setVal(i,0,String(rows[i][0]));setVal(i,1,rows[i][1]);}
+  toast('Sample loaded!');
+}
+function clearAll(){
+  for(var r=0;r<NR;r++)for(var c=0;c<NC;c++)setVal(r,c,'');
+  xlN=0;$('tc').textContent='0';toast('Sheet cleared');
+}
+function exportCSV(){
+  var lines=[];
+  for(var r=0;r<NR;r++)lines.push(D[r].map(function(v){return '"'+String(v||'').replace(/"/g,'""')+'"';}).join(','));
+  var b=new Blob([lines.join('\n')],{type:'text/csv'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(b);
+  a.download='hindi-sheet.csv';a.click();toast('CSV exported');
+}
+
+// ── Init ───────────────────────────────────────────────────────
+function initSel(){
+  ['src','dst'].forEach(function(id,i){
+    var s=$(id);s.innerHTML='';
+    LL.forEach(function(l,j){
+      var o=document.createElement('option');
+      o.value=j;o.textContent=l;if(j===i)o.selected=true;s.appendChild(o);
+    });
+  });
+  $('dst').value=1;
+  $('src').addEventListener('change',function(){styleHdrs();styleCells();renderAll();});
+  $('dst').addEventListener('change',function(){styleHdrs();styleCells();renderAll();});
+  $('nchk').addEventListener('change',renderAll);
+}
+initSel();buildGrid();styleCells();redraw();loadSample();
+</script>
+</body>
+</html>

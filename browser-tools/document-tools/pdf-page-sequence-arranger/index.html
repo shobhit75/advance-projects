@@ -1,0 +1,226 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);color:var(--color-text-primary)}
+.zone{border:1.5px dashed var(--color-border-secondary);border-radius:var(--border-radius-lg);padding:2rem;text-align:center;cursor:pointer;transition:background .15s;background:var(--color-background-secondary)}
+.zone:hover,.zone.drag-over{background:var(--color-background-info)}
+.zone input{display:none}
+.pages-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;margin-top:1rem}
+.page-card{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);background:var(--color-background-primary);padding:8px;cursor:grab;user-select:none;position:relative;transition:box-shadow .15s,transform .15s}
+.page-card:active{cursor:grabbing}
+.page-card.dragging{opacity:.4;transform:scale(.97)}
+.page-card.drag-target{border:2px solid #378ADD;background:var(--color-background-info)}
+.page-thumb{width:100%;aspect-ratio:0.707/1;background:var(--color-background-secondary);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:500;color:var(--color-text-secondary);overflow:hidden}
+.page-thumb canvas{width:100%;height:100%;object-fit:contain}
+.page-thumb img{width:100%;height:100%;object-fit:contain}
+.page-num{font-size:12px;color:var(--color-text-secondary);text-align:center;margin-top:6px}
+.page-order{font-size:11px;color:var(--color-text-tertiary);text-align:center}
+.del-btn{position:absolute;top:4px;right:4px;background:var(--color-background-danger);border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--color-text-danger);opacity:0;transition:opacity .15s}
+.page-card:hover .del-btn{opacity:1}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:1rem 0}
+.btn{padding:7px 14px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);cursor:pointer;font-size:13px;color:var(--color-text-primary);display:flex;align-items:center;gap:6px;transition:background .12s}
+.btn:hover{background:var(--color-background-secondary)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.primary{background:var(--color-background-info);border-color:var(--color-border-info);color:var(--color-text-info);font-weight:500}
+.btn.primary:hover{opacity:.85}
+.btn.danger{background:var(--color-background-danger);border-color:var(--color-border-danger);color:var(--color-text-danger)}
+.status{font-size:13px;color:var(--color-text-secondary);margin-left:auto}
+.section{margin-bottom:1.5rem}
+.seq-input{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.seq-input input[type=text]{border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:7px 10px;font-size:13px;background:var(--color-background-primary);color:var(--color-text-primary);width:220px}
+.hint{font-size:12px;color:var(--color-text-tertiary);margin-top:4px}
+h2{font-size:15px;font-weight:500;margin-bottom:8px;color:var(--color-text-primary)}
+.empty{text-align:center;color:var(--color-text-tertiary);padding:2rem;font-size:14px}
+.progress{width:100%;height:4px;background:var(--color-background-secondary);border-radius:2px;margin-top:8px;overflow:hidden}
+.progress-bar{height:100%;background:#378ADD;border-radius:2px;transition:width .3s}
+</style>
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden">PDF page sequence arranger — upload a PDF to reorder its pages by drag and drop</h2>
+
+<div id="app" style="padding:1rem 0">
+
+<div class="section">
+  <div class="zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+    <i class="ti ti-file-type-pdf" style="font-size:36px;color:var(--color-text-secondary)" aria-hidden="true"></i>
+    <p style="margin-top:8px;font-size:14px;font-weight:500">Drop a PDF here or click to upload</p>
+    <p style="font-size:12px;color:var(--color-text-tertiary);margin-top:4px">Pages will appear below for reordering</p>
+  </div>
+  <input type="file" id="file-input" accept="application/pdf">
+  <div class="progress" id="progress-wrap" style="display:none"><div class="progress-bar" id="progress-bar" style="width:0%"></div></div>
+</div>
+
+<div id="main-ui" style="display:none">
+  <div class="toolbar">
+    <button class="btn" onclick="reverseAll()"><i class="ti ti-arrows-sort" aria-hidden="true"></i>Reverse</button>
+    <button class="btn" onclick="sortAsc()"><i class="ti ti-sort-ascending" aria-hidden="true"></i>1→n</button>
+    <button class="btn" onclick="sortDesc()"><i class="ti ti-sort-descending" aria-hidden="true"></i>n→1</button>
+    <button class="btn danger" onclick="resetOrder()"><i class="ti ti-refresh" aria-hidden="true"></i>Reset</button>
+    <span class="status" id="status-text"></span>
+  </div>
+
+  <div class="section">
+    <h2>Custom sequence</h2>
+    <div class="seq-input">
+      <input type="text" id="seq-field" placeholder="e.g. 3,1,2,4-6,8">
+      <button class="btn" onclick="applySequence()"><i class="ti ti-check" aria-hidden="true"></i>Apply</button>
+    </div>
+    <p class="hint">Enter page numbers and ranges. Repeat numbers to duplicate pages.</p>
+  </div>
+
+  <div class="section">
+    <h2>Pages <span id="page-count-label" style="font-weight:400;font-size:13px;color:var(--color-text-tertiary)"></span></h2>
+    <div class="pages-grid" id="pages-grid"></div>
+  </div>
+
+  <div class="toolbar" style="margin-top:1rem">
+    <button class="btn primary" onclick="downloadPDF()"><i class="ti ti-download" aria-hidden="true"></i>Download rearranged PDF</button>
+    <button class="btn" onclick="resetAll()"><i class="ti ti-upload" aria-hidden="true"></i>Load new PDF</button>
+  </div>
+  <p id="dl-status" style="font-size:13px;color:var(--color-text-secondary);margin-top:8px"></p>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let pages=[];
+let originalFile=null;
+let pdfBytes=null;
+let totalPages=0;
+let dragSrc=null;
+
+const grid=document.getElementById('pages-grid');
+const mainUI=document.getElementById('main-ui');
+const dropZone=document.getElementById('drop-zone');
+const fileInput=document.getElementById('file-input');
+const progressWrap=document.getElementById('progress-wrap');
+const progressBar=document.getElementById('progress-bar');
+const statusText=document.getElementById('status-text');
+const pageCountLabel=document.getElementById('page-count-label');
+
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over')});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f&&f.type==='application/pdf')loadPDF(f)});
+fileInput.addEventListener('change',e=>{if(e.target.files[0])loadPDF(e.target.files[0])});
+
+async function loadPDF(file){
+  originalFile=file;
+  progressWrap.style.display='block';
+  progressBar.style.width='10%';
+  const ab=await file.arrayBuffer();
+  pdfBytes=new Uint8Array(ab);
+  progressBar.style.width='30%';
+  const pdfDoc=await pdfjsLib.getDocument({data:ab.slice()}).promise;
+  totalPages=pdfDoc.numPages;
+  pages=Array.from({length:totalPages},(_,i)=>({orig:i+1,thumb:null}));
+  progressBar.style.width='40%';
+  mainUI.style.display='block';
+  dropZone.parentElement.style.display='none';
+  await renderThumbs(pdfDoc);
+  progressBar.style.width='100%';
+  setTimeout(()=>progressWrap.style.display='none',400);
+  updateUI();
+}
+
+async function renderThumbs(pdfDoc){
+  for(let i=0;i<pages.length;i++){
+    const page=await pdfDoc.getPage(pages[i].orig);
+    const vp=page.getViewport({scale:0.4});
+    const c=document.createElement('canvas');
+    c.width=vp.width;c.height=vp.height;
+    await page.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+    pages[i].thumb=c.toDataURL();
+    progressBar.style.width=Math.round(40+55*(i+1)/pages.length)+'%';
+  }
+}
+
+function updateUI(){
+  pageCountLabel.textContent=`(${pages.length} page${pages.length!==1?'s':''})`;
+  statusText.textContent=`Original: ${totalPages} pages`;
+  grid.innerHTML='';
+  pages.forEach((p,idx)=>{
+    const card=document.createElement('div');
+    card.className='page-card';
+    card.draggable=true;
+    card.dataset.idx=idx;
+    const thumb=document.createElement('div');
+    thumb.className='page-thumb';
+    if(p.thumb){const img=document.createElement('img');img.src=p.thumb;thumb.appendChild(img);}
+    else{thumb.textContent=p.orig;}
+    const num=document.createElement('div');num.className='page-num';num.textContent='Page '+p.orig;
+    const ord=document.createElement('div');ord.className='page-order';ord.textContent='Position '+(idx+1);
+    const del=document.createElement('button');del.className='del-btn';del.innerHTML='<i class="ti ti-x" aria-hidden="true"></i>';del.title='Remove page';del.onclick=e=>{e.stopPropagation();pages.splice(idx,1);updateUI()};
+    card.appendChild(thumb);card.appendChild(num);card.appendChild(ord);card.appendChild(del);
+    card.addEventListener('dragstart',e=>{dragSrc=idx;card.classList.add('dragging');e.dataTransfer.effectAllowed='move'});
+    card.addEventListener('dragend',()=>{card.classList.remove('dragging');document.querySelectorAll('.page-card').forEach(c=>c.classList.remove('drag-target'))});
+    card.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='move';document.querySelectorAll('.page-card').forEach(c=>c.classList.remove('drag-target'));card.classList.add('drag-target')});
+    card.addEventListener('drop',e=>{e.preventDefault();card.classList.remove('drag-target');if(dragSrc===null||dragSrc===idx)return;const moved=pages.splice(dragSrc,1)[0];pages.splice(idx,0,moved);dragSrc=null;updateUI()});
+    grid.appendChild(card);
+  });
+}
+
+function reverseAll(){pages.reverse();updateUI()}
+function sortAsc(){pages.sort((a,b)=>a.orig-b.orig);updateUI()}
+function sortDesc(){pages.sort((a,b)=>b.orig-a.orig);updateUI()}
+function resetOrder(){pages=Array.from({length:totalPages},(_,i)=>({orig:i+1,thumb:pages.find(p=>p.orig===i+1)?.thumb||null}));updateUI()}
+
+function applySequence(){
+  const raw=document.getElementById('seq-field').value.trim();
+  if(!raw)return;
+  const result=[];
+  const parts=raw.split(',');
+  for(const part of parts){
+    const rangeMatch=part.trim().match(/^(\d+)-(\d+)$/);
+    if(rangeMatch){
+      let a=parseInt(rangeMatch[1]),b=parseInt(rangeMatch[2]);
+      const step=a<=b?1:-1;
+      for(let n=a;step>0?n<=b:n>=b;n+=step){
+        if(n>=1&&n<=totalPages){const orig=pages.find(p=>p.orig===n)||{orig:n,thumb:null};result.push({...orig});}
+      }
+    } else {
+      const n=parseInt(part.trim());
+      if(!isNaN(n)&&n>=1&&n<=totalPages){const orig=pages.find(p=>p.orig===n)||{orig:n,thumb:null};result.push({...orig});}
+    }
+  }
+  if(result.length===0){alert('No valid pages found. Use page numbers 1–'+totalPages);return;}
+  pages=result;
+  updateUI();
+}
+
+async function downloadPDF(){
+  const dlStatus=document.getElementById('dl-status');
+  dlStatus.textContent='Building PDF…';
+  try{
+    const {PDFDocument}=PDFLib;
+    const srcDoc=await PDFDocument.load(pdfBytes);
+    const newDoc=await PDFDocument.create();
+    for(const p of pages){
+      const [copied]=await newDoc.copyPages(srcDoc,[p.orig-1]);
+      newDoc.addPage(copied);
+    }
+    const outBytes=await newDoc.save();
+    const blob=new Blob([outBytes],{type:'application/pdf'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    const baseName=(originalFile?.name||'document').replace(/\.pdf$/i,'');
+    a.download=baseName+'_rearranged.pdf';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),5000);
+    dlStatus.textContent=`✓ Downloaded (${pages.length} pages)`;
+  } catch(e){
+    dlStatus.textContent='Error: '+e.message;
+  }
+}
+
+function resetAll(){
+  pages=[];pdfBytes=null;totalPages=0;originalFile=null;
+  mainUI.style.display='none';
+  dropZone.parentElement.style.display='block';
+  progressWrap.style.display='none';
+  progressBar.style.width='0%';
+  fileInput.value='';
+  grid.innerHTML='';
+}
+</script>

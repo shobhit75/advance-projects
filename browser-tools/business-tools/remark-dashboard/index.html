@@ -1,0 +1,506 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);font-size:14px;color:var(--text-primary)}
+.app{display:flex;flex-direction:column;min-height:600px;position:relative}
+.topbar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:0.5px solid var(--border);background:var(--surface-2);flex-wrap:wrap}
+.topbar h1{font-size:15px;font-weight:500;margin-right:auto}
+.main{display:flex;flex:1;min-height:500px}
+.sidebar{width:270px;min-width:220px;border-right:0.5px solid var(--border);display:flex;flex-direction:column;background:var(--surface-1);overflow-y:auto;max-height:calc(100vh - 44px)}
+.sec{padding:10px 12px;border-bottom:0.5px solid var(--border)}
+.sec h2{font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px}
+.content{flex:1;display:flex;flex-direction:column;min-width:0}
+.row-view{flex:1;overflow-y:auto;padding:16px}
+.card{background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px}
+.card label{font-size:11px;color:var(--text-muted);font-weight:500;display:block;margin-bottom:3px}
+.card .val{font-size:15px;color:var(--text-primary);word-break:break-all}
+.rcard{border-color:var(--border-accent)}
+.rcard label{color:var(--text-accent)}
+.nav-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:0.5px solid var(--border);background:var(--surface-2)}
+.counter{font-size:13px;color:var(--text-secondary)}
+.btn{height:30px;padding:0 12px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:transparent;color:var(--text-primary);cursor:pointer;font-size:13px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+.btn:hover{background:var(--surface-0)}
+.btn.accent{background:var(--fill-accent);color:var(--on-accent);border-color:transparent}
+.btn.accent:hover{background:var(--fill-accent-hover)}
+.btn.sm{height:26px;padding:0 8px;font-size:12px}
+.btn.full{width:100%;justify-content:center}
+.drop-zone{border:1.5px dashed var(--border-strong);border-radius:10px;padding:20px 12px;text-align:center;cursor:pointer;color:var(--text-muted)}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--border-accent);color:var(--text-accent);background:var(--bg-accent)}
+.drop-zone i{font-size:26px;margin-bottom:5px;display:block}
+.chip{display:inline-block;font-size:11px;padding:2px 7px;border-radius:20px;background:var(--bg-accent);color:var(--text-accent);border:0.5px solid var(--border-accent);margin:2px}
+.ri{display:flex;flex-direction:column;gap:5px;margin-bottom:8px;padding:8px;background:var(--surface-2);border:0.5px solid var(--border);border-radius:var(--radius)}
+.ri-row{display:flex;align-items:center;gap:6px}
+.ri select{flex:1;min-width:0;height:26px;font-size:12px;padding:0 4px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--surface-1);color:var(--text-primary)}
+.ri select:focus{outline:none;border-color:var(--border-accent)}
+.ri .del{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border:0.5px solid var(--border);border-radius:var(--radius);background:transparent;cursor:pointer;color:var(--text-muted);flex-shrink:0}
+.ri .del:hover{background:var(--bg-danger);color:var(--text-danger);border-color:var(--border-danger)}
+.ri .ref-btn{font-size:11px;padding:2px 6px;border:0.5px solid var(--border-strong);border-radius:var(--radius);background:transparent;color:var(--text-secondary);cursor:pointer;white-space:nowrap;flex-shrink:0}
+.ri .ref-btn:hover{background:var(--bg-accent);color:var(--text-accent);border-color:var(--border-accent)}
+.ri .ref-tag{font-size:10px;color:var(--text-accent)}
+.ri .mode-tag{font-size:10px;color:var(--text-muted)}
+input[type=text]{height:28px;font-size:13px;padding:0 8px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--surface-1);color:var(--text-primary)}
+input[type=text]:focus{outline:none;border-color:var(--border-accent)}
+.rinput{width:100%;height:28px;font-size:13px;padding:0 8px;border:0.5px solid var(--border-accent);border-radius:var(--radius);background:var(--surface-1);color:var(--text-primary)}
+.rinput:focus{outline:none;border-color:var(--fill-accent)}
+.status{font-size:12px;color:var(--text-muted);padding:2px 0}
+.empty{text-align:center;padding:40px;color:var(--text-muted)}
+.modal-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;z-index:100}
+.modal{background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:20px;min-width:300px;max-width:440px;width:90%}
+.modal h3{font-size:15px;font-weight:500;margin-bottom:12px}
+.modal .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.stbl{overflow:auto;max-height:180px;margin-top:6px;border:0.5px solid var(--border);border-radius:var(--radius)}
+.stbl table{border-collapse:collapse;font-size:12px;width:100%}
+.stbl td,.stbl th{border:0.5px solid var(--border);padding:3px 7px;white-space:nowrap;cursor:pointer}
+.stbl th{background:var(--surface-1);color:var(--text-muted);font-weight:500;position:sticky;top:0}
+.stbl td:hover{background:var(--bg-accent);color:var(--text-accent)}
+.stbl td.hl{background:var(--bg-accent);color:var(--text-accent);font-weight:500}
+.col-picker-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:4px;max-height:260px;overflow-y:auto;margin:8px 0;padding:8px;border:0.5px solid var(--border);border-radius:var(--radius)}
+.col-pick-item{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:var(--radius);cursor:pointer;font-size:12px}
+.col-pick-item:hover{background:var(--bg-accent)}
+.col-pick-item input[type=checkbox]{accent-color:var(--fill-accent);width:13px;height:13px;cursor:pointer;flex-shrink:0}
+.col-pick-item.checked{background:var(--bg-accent);color:var(--text-accent)}
+.picker-actions{display:flex;gap:6px;margin-bottom:8px}
+
+.info-tag{font-size:10px;padding:2px 6px;border-radius:20px;background:var(--bg-success);color:var(--text-success);border:0.5px solid var(--border-success)}
+.warn-tag{font-size:10px;padding:2px 6px;border-radius:20px;background:var(--bg-warning);color:var(--text-warning);border:0.5px solid var(--border-warning)}
+</style>
+
+<div class="app" id="root">
+<div class="topbar">
+  <i class="ti ti-table" style="font-size:18px;color:var(--text-accent)" aria-hidden="true"></i>
+  <h1>Remark dashboard</h1>
+  <button class="btn accent" id="btnDownloadNew"><i class="ti ti-file-spreadsheet" aria-hidden="true"></i> Download new sheet</button>
+  <button class="btn" id="btnUpdateOld"><i class="ti ti-device-floppy" aria-hidden="true"></i> Update old sheet</button>
+</div>
+
+<div class="main">
+<div class="sidebar">
+  <div class="sec">
+    <h2>Excel file</h2>
+    <div class="drop-zone" id="dropZone">
+      <i class="ti ti-upload" aria-hidden="true"></i>
+      <div>Drop .xlsx here</div>
+      <div style="font-size:11px;margin-top:3px">or click to browse</div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none">
+    <div id="fileInfo" style="margin-top:6px"></div>
+  </div>
+
+  <div class="sec">
+    <h2>Sheet</h2>
+    <div id="sheetArea"><div class="status">No file loaded</div></div>
+  </div>
+
+  <div class="sec">
+    <h2>Columns to display</h2>
+    <div id="colStatus" class="status">Upload a file first</div>
+    <div id="colChips"></div>
+    <div style="margin-top:8px;display:flex;gap:6px">
+      <input type="text" id="colInput" placeholder="A,B,C or A-E" style="flex:1;min-width:0">
+      <button class="btn sm" id="btnSetCols">Set</button>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>Remark columns</h2>
+    <div id="remarkList"><div class="status">None added</div></div>
+    <button class="btn sm full" id="btnAddRemark" style="margin-top:8px"><i class="ti ti-plus" aria-hidden="true"></i> Add remark field</button>
+  </div>
+
+  <div class="sec">
+    <h2>Output sheet columns</h2>
+    <div id="outColStatus" class="status">Upload a file first</div>
+    <div id="outColChips" style="margin-top:4px"></div>
+    <button class="btn sm full" id="btnPickOutCols" style="margin-top:8px" disabled><i class="ti ti-columns" aria-hidden="true"></i> Choose columns…</button>
+  </div>
+</div>
+
+<div class="content">
+  <div class="row-view" id="rowView">
+    <div class="empty"><i class="ti ti-table-off" style="font-size:36px;display:block;margin-bottom:10px" aria-hidden="true"></i>Upload an Excel file to begin</div>
+  </div>
+  <div class="nav-bar">
+    <button class="btn" id="btnPrev"><i class="ti ti-arrow-left" aria-hidden="true"></i> Previous</button>
+    <span class="counter" id="rowCounter">—</span>
+    <button class="btn" id="btnNext">Next <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+  </div>
+</div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let wb=null,sheetName=null,rawRows=[],headerRow=0,currentRow=1,displayCols=[],remarkCols=[],origName='';
+// outputCols: null means "all columns" (default); array of col indices means explicit selection
+let outputCols=null;
+
+function colLetter(i){let r='';i++;while(i>0){let m=(i-1)%26;r=String.fromCharCode(65+m)+r;i=Math.floor((i-1)/26);}return r;}
+function colIdx(l){l=l.toUpperCase();let r=0;for(let c of l)r=r*26+(c.charCodeAt(0)-64);return r-1;}
+function parseCols(s){let out=[];s.split(',').forEach(p=>{p=p.trim().toUpperCase();if(p.includes('-')){let[a,b]=p.split('-');for(let i=colIdx(a);i<=colIdx(b);i++)out.push(i);}else if(p)out.push(colIdx(p));});return[...new Set(out)].sort((a,b)=>a-b);}
+
+function headerCols(){
+  if(!rawRows.length)return[];
+  const h=rawRows[headerRow]||[];
+  return h.map((v,i)=>({idx:i,label:v?`${colLetter(i)}: ${v}`:colLetter(i),raw:v}));
+}
+
+function loadSheet(name){
+  sheetName=name;
+  const ws=wb.Sheets[name];
+  rawRows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  headerRow=0;currentRow=1;
+  renderSheetArea();
+  renderColChips();
+  if(displayCols.length===0){const maxC=Math.max(...rawRows.map(r=>r.length),1);displayCols=Array.from({length:Math.min(maxC,10)},(_,i)=>i);}
+  renderColChips();
+  renderRemarkList();
+  renderOutColStatus();
+  renderRow();
+}
+
+function renderSheetArea(){
+  if(!wb){$('sheetArea').innerHTML='<div class="status">No file loaded</div>';return;}
+  $('sheetArea').innerHTML='<div style="display:flex;flex-wrap:wrap;gap:4px">'+
+    wb.SheetNames.map(n=>`<button class="btn sm ${n===sheetName?'accent':''}" onclick="loadSheet('${n.replace(/'/g,"\\'")}')">${n}</button>`).join('')+'</div>';
+}
+
+function renderColChips(){
+  if(!rawRows.length){$('colChips').innerHTML='';$('colStatus').textContent='No data';return;}
+  $('colStatus').textContent=`${displayCols.length} column${displayCols.length!==1?'s':''} shown`;
+  $('colChips').innerHTML='<div style="display:flex;flex-wrap:wrap;margin-bottom:4px">'+displayCols.map(i=>{const h=rawRows[headerRow]?rawRows[headerRow][i]||'':'';;return`<span class="chip">${colLetter(i)}${h?' · '+h:''}</span>`}).join('')+'</div>';
+}
+
+function renderRemarkList(){
+  const el=$('remarkList');
+  if(!remarkCols.length){el.innerHTML='<div class="status">None added</div>';return;}
+  const cols=headerCols();
+  el.innerHTML=remarkCols.map(rc=>{
+    const opts=cols.map(c=>`<option value="${c.idx}" ${rc.targetColIdx===c.idx?'selected':''}>${c.label}</option>`).join('');
+    const newOpt=`<option value="__new__" ${rc.targetColIdx==='__new__'?'selected':''}>+ New column</option>`;
+    const modeLabel=rc.targetColIdx==='__new__'?`<span class="warn-tag">new</span>`:`<span class="info-tag">existing</span>`;
+    return`<div class="ri" data-rcid="${rc.id}">
+      <div class="ri-row">
+        <select onchange="updateRemarkTarget(this,'${rc.id}')" title="Target column">
+          <option value="">— select column —</option>
+          ${opts}
+          ${newOpt}
+        </select>
+        <button class="ref-btn" onclick="openRef('${rc.id}')"><i class="ti ti-cell" aria-hidden="true"></i> Ref</button>
+        <button class="del" onclick="delRemark('${rc.id}')"><i class="ti ti-trash" aria-hidden="true"></i></button>
+      </div>
+      <div class="ri-row" style="gap:6px;flex-wrap:wrap">
+        ${modeLabel}
+        ${rc.targetColIdx==='__new__'?`<input type="text" value="${rc.header||''}" placeholder="New column header" style="flex:1;min-width:80px;height:24px;font-size:12px" oninput="updateRemarkHeader(this,'${rc.id}')">`:
+        `<span class="mode-tag">Writes to existing header</span>`}
+      </div>
+      ${rc.cellRef?`<div class="ri-row"><span class="ref-tag"><i class="ti ti-pin" aria-hidden="true"></i> ${rc.cellRef}</span></div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function updateRemarkTarget(sel,id){
+  const rc=remarkCols.find(r=>r.id===id);if(!rc)return;
+  const v=sel.value;
+  if(v===''){rc.targetColIdx='';return;}
+  if(v==='__new__'){rc.targetColIdx='__new__';}
+  else{rc.targetColIdx=parseInt(v);}
+  renderRemarkList();renderRow();
+}
+
+function updateRemarkHeader(el,id){
+  const rc=remarkCols.find(r=>r.id===id);if(rc){rc.header=el.value;renderRow();}
+}
+
+function delRemark(id){remarkCols=remarkCols.filter(r=>r.id!==id);renderRemarkList();renderRow();}
+
+function openRef(id){
+  const rc=remarkCols.find(r=>r.id===id);if(!rc)return;
+  showRefModal(rc,(ref,newHR)=>{
+    rc.cellRef=ref;
+    if(newHR!==undefined){headerRow=newHR;currentRow=headerRow+1;}
+    renderRemarkList();renderRow();
+  });
+}
+
+let refCb=null;
+function showRefModal(rc,cb){
+  refCb=cb;
+  let tbl='';
+  if(rawRows.length){
+    const preview=rawRows.slice(0,Math.min(9,rawRows.length));
+    const maxC=Math.max(...preview.map(r=>r.length),0);
+    tbl='<div class="stbl"><table><thead><tr><th>#</th>';
+    for(let c=0;c<Math.min(maxC,10);c++)tbl+=`<th>${colLetter(c)}</th>`;
+    tbl+='</tr></thead><tbody>';
+    preview.forEach((row,ri)=>{
+      tbl+=`<tr><th>${ri+1}</th>`;
+      for(let c=0;c<Math.min(maxC,10);c++){
+        const addr=`${colLetter(c)}${ri+1}`;
+        tbl+=`<td onclick="pickCell('${addr}',${ri})">${row[c]!==undefined&&row[c]!==''?row[c]:''}</td>`;
+      }
+      tbl+='</tr>';
+    });
+    tbl+='</tbody></table></div><p class="hint">Click a cell — that row becomes the start row</p>';
+  }
+  const ov=document.createElement('div');
+  ov.className='modal-overlay';ov.id='refOverlay';
+  ov.innerHTML=`<div class="modal">
+    <h3>Cell reference — ${rc.header||'remark'}</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px">E.g. <code>A2</code> or <code>Sheet2!B3</code>. Row number sets the first data row.</p>
+    <input type="text" id="refInp" placeholder="A2" value="${rc.cellRef||''}" style="width:100%;margin-bottom:8px">
+    ${tbl}
+    <div class="actions">
+      <button class="btn" onclick="closeRef()">Cancel</button>
+      <button class="btn accent" onclick="applyRef()">Apply</button>
+    </div>
+  </div>`;
+  $('root').appendChild(ov);
+}
+
+function pickCell(addr,ri){
+  const inp=$('refInp');if(inp)inp.value=addr;
+  document.querySelectorAll('.stbl td').forEach(t=>t.classList.remove('hl'));
+  event.target.classList.add('hl');
+}
+
+function applyRef(){
+  const v=$('refInp').value.trim();closeRef();if(!v)return;
+  let sh=sheetName,cell=v;
+  if(v.includes('!')){[sh,cell]=v.split('!');}
+  const m=cell.match(/^([A-Za-z]+)(\d+)$/);
+  let newHR=undefined;
+  if(m){
+    const rn=parseInt(m[2]);
+    newHR=rn>=2?rn-2:0;
+    if(sh&&sh!==sheetName&&wb&&wb.Sheets[sh])loadSheet(sh);
+  }
+  if(refCb)refCb(v,newHR);
+}
+
+function closeRef(){const o=$('refOverlay');if(o)o.remove();refCb=null;}
+
+function remarkLabel(rc){
+  if(rc.targetColIdx==='__new__')return rc.header||'Remark';
+  if(rc.targetColIdx!==''&&rc.targetColIdx!==undefined){
+    const h=rawRows[headerRow]?rawRows[headerRow][rc.targetColIdx]:'';
+    return h||colLetter(rc.targetColIdx);
+  }
+  return rc.header||'Remark';
+}
+
+function renderRow(){
+  const view=$('rowView');
+  if(!rawRows.length){view.innerHTML='<div class="empty">No data loaded</div>';$('rowCounter').textContent='—';return;}
+  const dataRows=rawRows.slice(headerRow+1);
+  const total=dataRows.length;
+  if(!total){view.innerHTML='<div class="empty">No data rows</div>';$('rowCounter').textContent='0 / 0';return;}
+  const idx=currentRow-headerRow-1;
+  $('rowCounter').textContent=`Row ${idx+1} of ${total}`;
+  const row=dataRows[idx]||[];
+  let html='';
+  displayCols.forEach(ci=>{
+    const hdr=rawRows[headerRow]?rawRows[headerRow][ci]||colLetter(ci):colLetter(ci);
+    const val=row[ci]!==undefined&&row[ci]!==''?row[ci]:'—';
+    html+=`<div class="card"><label>${colLetter(ci)} — ${hdr}</label><div class="val">${val}</div></div>`;
+  });
+  remarkCols.forEach(rc=>{
+    if(rc.targetColIdx===''||rc.targetColIdx===undefined)return;
+    const key=`${sheetName}::${currentRow}::${rc.id}`;
+    const saved=rc.data[key]||'';
+    const lbl=remarkLabel(rc);
+    const isExisting=rc.targetColIdx!=='__new__';
+    // show existing value if targeting existing col
+    let existingVal='';
+    if(isExisting){
+      existingVal=row[rc.targetColIdx];
+      if(existingVal===undefined||existingVal==='')existingVal='';
+    }
+    html+=`<div class="card rcard">
+      <label><i class="ti ti-edit" aria-hidden="true"></i> ${lbl}${isExisting?' <span style="font-size:10px;opacity:0.7">(existing)</span>':''}</label>
+      ${isExisting&&existingVal!==''?`<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Current: ${existingVal}</div>`:''}
+      <input class="rinput" type="text" value="${saved.replace(/"/g,'&quot;')}" data-rcid="${rc.id}" data-key="${key}" placeholder="Enter remark…" oninput="saveRemark(this)">
+    </div>`;
+  });
+  view.innerHTML=html||'<div class="empty">No columns selected</div>';
+}
+
+function saveRemark(el){
+  const rc=remarkCols.find(r=>r.id===el.dataset.rcid);
+  if(rc)rc.data[el.dataset.key]=el.value;
+}
+
+$('dropZone').onclick=()=>$('fileInput').click();
+$('dropZone').ondragover=e=>{e.preventDefault();$('dropZone').classList.add('drag')};
+$('dropZone').ondragleave=()=>$('dropZone').classList.remove('drag');
+$('dropZone').ondrop=e=>{e.preventDefault();$('dropZone').classList.remove('drag');if(e.dataTransfer.files[0])readFile(e.dataTransfer.files[0])};
+$('fileInput').onchange=e=>{if(e.target.files[0])readFile(e.target.files[0]);e.target.value='';};
+
+function readFile(file){
+  origName=file.name;
+  const fr=new FileReader();
+  fr.onload=e=>{
+    wb=XLSX.read(e.target.result,{type:'array'});
+    headerRow=0;currentRow=1;displayCols=[];remarkCols=[];outputCols=null;
+    $('fileInfo').innerHTML=`<div style="font-size:12px;color:var(--text-accent);margin-top:4px"><i class="ti ti-check" aria-hidden="true"></i> ${file.name}</div>`;
+    loadSheet(wb.SheetNames[0]);
+  };
+  fr.readAsArrayBuffer(file);
+}
+
+$('btnSetCols').onclick=()=>{
+  const v=$('colInput').value.trim();if(!v)return;
+  displayCols=parseCols(v);renderColChips();renderRow();
+};
+
+$('btnAddRemark').onclick=()=>{
+  remarkCols.push({id:'rc_'+Date.now(),header:'',data:{},cellRef:'',targetColIdx:''});
+  renderRemarkList();
+};
+
+$('btnPrev').onclick=()=>{if(currentRow>headerRow+1){currentRow--;renderRow();}};
+$('btnNext').onclick=()=>{if(currentRow<rawRows.length-1){currentRow++;renderRow();}};
+
+function renderOutColStatus(){
+  const btn=$('btnPickOutCols');
+  if(!rawRows.length){
+    $('outColStatus').textContent='Upload a file first';
+    $('outColChips').innerHTML='';
+    btn.disabled=true;return;
+  }
+  btn.disabled=false;
+  const cols=headerCols();
+  if(outputCols===null){
+    $('outColStatus').textContent=`All ${cols.length} column${cols.length!==1?'s':''} (+ any new remark cols)`;
+    $('outColChips').innerHTML='';
+  } else {
+    $('outColStatus').textContent=`${outputCols.length} of ${cols.length} column${cols.length!==1?'s':''} selected`;
+    $('outColChips').innerHTML='<div style="display:flex;flex-wrap:wrap">'+
+      outputCols.map(i=>{const h=cols.find(c=>c.idx===i);return`<span class="chip">${h?h.label:colLetter(i)}</span>`;}).join('')+'</div>';
+  }
+}
+
+function openOutColPicker(){
+  const cols=headerCols();
+  // also include any pending new remark columns
+  const newRemarkCols=remarkCols.filter(rc=>rc.targetColIdx==='__new__'&&rc.header);
+  const maxExisting=Math.max(...rawRows.map(r=>r.length),0);
+  const allSelected=outputCols===null;
+  // build a working set: indices of selected source cols
+  let sel=new Set(outputCols!==null?outputCols:cols.map(c=>c.idx));
+
+  const ov=document.createElement('div');
+  ov.className='modal-overlay';ov.id='outPickerOverlay';
+  ov.innerHTML=`<div class="modal" style="max-width:520px;width:95%">
+    <h3><i class="ti ti-columns" style="margin-right:6px"></i>Choose output columns</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Select which columns from the source sheet appear in the downloaded file. New remark columns you added are always included.</p>
+    <div class="picker-actions">
+      <button class="btn sm" id="outPickAll">Select all</button>
+      <button class="btn sm" id="outPickNone">Clear all</button>
+      <button class="btn sm" id="outPickReset" style="margin-left:auto">Reset (all cols)</button>
+    </div>
+    <div class="col-picker-grid" id="outPickGrid">${cols.map(c=>`
+      <label class="col-pick-item${sel.has(c.idx)?' checked':''}" data-idx="${c.idx}">
+        <input type="checkbox" value="${c.idx}"${sel.has(c.idx)?' checked':''} onchange="outPickToggle(this)">
+        <span>${c.label}</span>
+      </label>`).join('')}
+    ${newRemarkCols.map((rc,i)=>`
+      <label class="col-pick-item checked" style="opacity:0.6;pointer-events:none" title="New remark column — always included">
+        <input type="checkbox" checked disabled>
+        <span style="font-style:italic">${rc.header} <span style="font-size:10px">(new)</span></span>
+      </label>`).join('')}
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="closeOutPicker()">Cancel</button>
+      <button class="btn accent" onclick="applyOutPicker()">Apply</button>
+    </div>
+  </div>`;
+  $('root').appendChild(ov);
+
+  $('outPickAll').onclick=()=>{
+    ov.querySelectorAll('.col-pick-item input[type=checkbox]:not([disabled])').forEach(cb=>{cb.checked=true;cb.closest('.col-pick-item').classList.add('checked');});
+  };
+  $('outPickNone').onclick=()=>{
+    ov.querySelectorAll('.col-pick-item input[type=checkbox]:not([disabled])').forEach(cb=>{cb.checked=false;cb.closest('.col-pick-item').classList.remove('checked');});
+  };
+  $('outPickReset').onclick=()=>{closeOutPicker();outputCols=null;renderOutColStatus();};
+}
+
+function outPickToggle(cb){
+  cb.closest('.col-pick-item').classList.toggle('checked',cb.checked);
+}
+
+function applyOutPicker(){
+  const ov=$('outPickerOverlay');if(!ov)return;
+  const checked=[...ov.querySelectorAll('.col-pick-item input[type=checkbox]:not([disabled]):checked')].map(cb=>parseInt(cb.value));
+  outputCols=checked.length?checked:null;
+  closeOutPicker();
+  renderOutColStatus();
+}
+
+function closeOutPicker(){const o=$('outPickerOverlay');if(o)o.remove();}
+
+$('btnPickOutCols').onclick=openOutColPicker;
+
+
+function buildOutputWb(){
+  if(!wb)return null;
+  const newCols=remarkCols.filter(rc=>rc.targetColIdx==='__new__'&&rc.header);
+
+  const newWb=XLSX.utils.book_new();
+  wb.SheetNames.forEach(sn=>{
+    const ws2=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:''});
+    const hR=sn===sheetName?headerRow:0;
+    const maxExisting=Math.max(...ws2.map(r=>r.length),0);
+
+    // Build full data with remarks applied
+    const fullData=ws2.map(row=>row.slice());
+
+    // Add new column headers
+    newCols.forEach((rc,i)=>{fullData[hR][maxExisting+i]=rc.header;});
+
+    // Write remarks into fullData
+    fullData.forEach((row,ri)=>{
+      if(ri<=hR)return;
+      remarkCols.forEach((rc)=>{
+        if(rc.targetColIdx==='__new__'&&rc.header){
+          const ni=newCols.indexOf(rc);
+          const key=`${sn}::${ri}::${rc.id}`;
+          row[maxExisting+ni]=rc.data[key]||row[maxExisting+ni]||'';
+        } else if(rc.targetColIdx!==''&&rc.targetColIdx!==undefined&&rc.targetColIdx!=='__new__'){
+          const key=`${sn}::${ri}::${rc.id}`;
+          if(rc.data[key]!==undefined&&rc.data[key]!=='')row[rc.targetColIdx]=rc.data[key];
+        }
+      });
+    });
+
+    // Filter columns if outputCols is set (applies only to the active sheet)
+    let finalData;
+    if(sn===sheetName&&outputCols!==null){
+      const newColIdxs=newCols.map((_,i)=>maxExisting+i);
+      const keepIdxs=[...outputCols,...newColIdxs];
+      finalData=fullData.map(row=>keepIdxs.map(i=>row[i]!==undefined?row[i]:''));
+    } else {
+      finalData=fullData;
+    }
+
+    const newWs=XLSX.utils.aoa_to_sheet(finalData);
+    XLSX.utils.book_append_sheet(newWb,newWs,sn);
+  });
+  return newWb;
+}
+
+
+$('btnDownloadNew').onclick=()=>{
+  if(!wb){alert('Upload a file first');return;}
+  const out=buildOutputWb();
+  const base=origName.replace(/\.(xlsx|xls)$/i,'');
+  XLSX.writeFile(out,`${base}_with_remarks.xlsx`);
+};
+
+$('btnUpdateOld').onclick=()=>{
+  if(!wb){alert('Upload a file first');return;}
+  const out=buildOutputWb();
+  XLSX.writeFile(out,origName);
+};
+</script>

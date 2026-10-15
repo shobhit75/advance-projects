@@ -1,0 +1,11 @@
+# Folder to PDF
+
+Batch convert files from a selected folder to PDF.
+
+## Contents
+
+This folder contains the source files for this project. Generated dependencies, build output, local credentials, and archives are excluded.
+
+## Getting started
+
+Open `index.html` in a modern browser. No build step is required.

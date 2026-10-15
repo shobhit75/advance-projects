@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cycle — A Design Thinking Workflow Manager</title>
+<style>
+  :root{
+    --paper:#EDEAE2;
+    --paper-dim:#E3DFD3;
+    --ink:#211F1B;
+    --ink-soft:#5C584E;
+    --line:#CBC5B4;
+    --indigo:#3D4B94;
+    --indigo-dim:#E7E9F4;
+    --amber:#C9822E;
+    --amber-dim:#F3E4CE;
+    --sage:#5C7A5E;
+    --sage-dim:#E4EBE1;
+    --font-display:'Fraunces', Georgia, serif;
+    --font-body:'IBM Plex Sans', -apple-system, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--paper); color:var(--ink); font-family:var(--font-body); font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;}
+  a{color:inherit;}
+  ::selection{background:var(--amber-dim);}
+  :focus-visible{outline:2px solid var(--indigo); outline-offset:3px;}
+
+  [contenteditable="true"]{border-radius:2px; transition:background .12s ease;}
+  [contenteditable="true"]:hover{background:rgba(61,75,148,0.06); outline:1px dashed var(--line);}
+  [contenteditable="true"]:focus{background:rgba(61,75,148,0.09); outline:1px dashed var(--indigo);}
+
+  .shell{max-width:1080px; margin:0 auto; padding:0 32px;}
+  header.top{position:sticky; top:0; z-index:50; background:rgba(237,234,226,0.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--line);}
+  .topbar{max-width:1080px; margin:0 auto; padding:18px 32px; display:flex; align-items:baseline; justify-content:space-between; gap:24px; flex-wrap:wrap;}
+  .brand{font-family:var(--font-display); font-size:22px; font-weight:600; letter-spacing:-0.01em; display:flex; align-items:baseline; gap:8px;}
+  .brand small{font-family:var(--font-body); font-weight:400; font-size:13px; color:var(--ink-soft);}
+  nav.pages{display:flex; gap:4px; flex-wrap:wrap;}
+  nav.pages button{font-family:var(--font-body); font-size:14px; background:none; border:none; cursor:pointer; color:var(--ink-soft); padding:7px 12px; border-radius:3px; transition:color .15s ease, background .15s ease;}
+  nav.pages button:hover{color:var(--ink); background:var(--paper-dim);}
+  nav.pages button[aria-current="page"]{color:var(--ink); background:var(--indigo-dim); font-weight:600;}
+
+  main{padding:64px 0 96px;}
+  .page{display:none; animation:rise .35s ease both;}
+  .page.active{display:block;}
+  @keyframes rise{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
+  @media (prefers-reduced-motion: reduce){ .page{animation:none;} }
+
+  h1{font-family:var(--font-display); font-size:clamp(34px,5vw,54px); line-height:1.06; font-weight:600; letter-spacing:-0.01em; margin:0 0 22px; max-width:18ch;}
+  h2{font-family:var(--font-display); font-size:clamp(26px,3.4vw,32px); font-weight:600; margin:0 0 18px;}
+  h3{font-family:var(--font-display); font-size:19px; font-weight:600; margin:0 0 8px;}
+  p{max-width:62ch; color:var(--ink); margin:0 0 16px;}
+  p.lede{font-size:19px; color:var(--ink-soft); max-width:52ch;}
+  .kicker{font-size:14px; color:var(--indigo); margin:0 0 14px; font-weight:600;}
+
+  section.block{padding:56px 0; border-top:1px solid var(--line);}
+  section.block:first-of-type{border-top:none;}
+
+  .hero{padding:20px 0 40px;}
+  .hero-grid{display:grid; grid-template-columns:1.3fr 1fr; gap:56px; align-items:start;}
+  @media (max-width:760px){.hero-grid{grid-template-columns:1fr;}}
+  .quote-card{background:var(--ink); color:var(--paper); border-radius:4px; padding:32px; font-family:var(--font-display); font-size:22px; line-height:1.4;}
+  .quote-card span{display:block; margin-top:16px; font-family:var(--font-body); font-size:13px; color:#C6C2B6;}
+
+  .cta-row{display:flex; gap:12px; margin-top:28px; flex-wrap:wrap;}
+  .btn{font-family:var(--font-body); font-size:14px; font-weight:600; padding:12px 20px; border-radius:3px; cursor:pointer; border:1px solid transparent; transition:transform .12s ease, background .15s ease;}
+  .btn.primary{background:var(--indigo); color:var(--paper);}
+  .btn.primary:hover{background:#333f80;}
+  .btn.ghost{background:transparent; border-color:var(--ink); color:var(--ink);}
+  .btn.ghost:hover{background:var(--paper-dim);}
+  .btn.small{padding:8px 14px; font-size:13px;}
+  .btn[disabled]{opacity:.4; cursor:not-allowed;}
+
+  .stat-strip{display:flex; gap:36px; margin-top:44px; flex-wrap:wrap;}
+  .stat{min-width:120px;}
+  .stat .n{font-family:var(--font-display); font-size:32px; font-weight:600; display:block;}
+  .stat .l{font-size:13px; color:var(--ink-soft);}
+
+  .session-bar{margin-top:36px; padding:18px 20px; background:var(--paper-dim); border:1px solid var(--line); border-radius:6px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+  .session-bar .lbl{font-size:13px; color:var(--ink-soft); margin-right:auto;}
+  .session-status{font-size:12px; color:var(--sage); min-height:16px;}
+  .present-overlay{position:fixed; inset:0; z-index:100; display:none; background:#171614; color:var(--paper); padding:32px;}
+  .present-overlay.open{display:flex; flex-direction:column;}
+  .present-top{display:flex; align-items:center; justify-content:space-between; gap:16px; color:#C6C2B6; font-size:13px;}
+  .present-counter{font-variant-numeric:tabular-nums;}
+  .present-stage{flex:1; display:flex; align-items:center; justify-content:center; min-height:0;}
+  .present-slide{width:min(980px, 92vw); max-height:78vh; overflow:auto; padding:clamp(24px,5vw,72px); background:#24221e; border:1px solid #4a463d; border-radius:8px; box-shadow:0 20px 70px rgba(0,0,0,.35);}
+  .present-slide .kicker{color:#B8C1FF; margin-bottom:18px;}
+  .present-slide h2{font-size:clamp(34px,6vw,68px); line-height:1.08; margin-bottom:24px; color:var(--paper);}
+  .present-slide p{font-size:clamp(18px,2.2vw,27px); line-height:1.45; color:#D8D3C7; max-width:68ch;}
+  .present-slide ul{font-size:clamp(17px,2vw,24px); line-height:1.55; color:#D8D3C7; padding-left:1.2em;}
+  .present-bottom{display:flex; justify-content:center; gap:12px; padding-top:24px;}
+  .present-bottom .btn.ghost{border-color:#C6C2B6; color:var(--paper);}
+  .present-close{background:none; border:1px solid #777166; color:var(--paper); border-radius:3px; padding:8px 13px; cursor:pointer;}
+  @media (max-width:600px){.present-overlay{padding:18px;}.present-slide{padding:26px 22px;}.present-bottom{padding-top:14px;}}
+
+  .timeline{position:relative; padding-left:28px; margin-top:8px;}
+  .timeline::before{content:""; position:absolute; left:8px; top:6px; bottom:6px; width:2px; background:var(--line);}
+  .stage{position:relative; padding:0 0 34px 20px;}
+  .stage::before{content:attr(data-n); position:absolute; left:-28px; top:0; width:18px; height:18px; border-radius:50%; background:var(--indigo); color:var(--paper); font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center;}
+  .stage h3{margin-bottom:6px;}
+  .stage .meta{font-size:13px; color:var(--ink-soft); margin-bottom:6px;}
+  .stage .body{margin:0; font-size:14.5px;}
+  .stage .out{display:inline-block; margin-top:6px; font-size:13px; background:var(--amber-dim); color:#7A5217; padding:3px 10px; border-radius:3px;}
+  .loop-note{margin-top:8px; padding:18px 20px; background:var(--sage-dim); border-left:3px solid var(--sage); border-radius:2px; max-width:56ch;}
+  .loop-note p{margin:0; color:#3C5A3E; font-size:14px;}
+
+  .obj-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); margin-top:8px;}
+  @media (max-width:760px){.obj-grid{grid-template-columns:repeat(2,1fr);}}
+  @media (max-width:480px){.obj-grid{grid-template-columns:1fr;}}
+  .obj{background:var(--paper); padding:22px;}
+  .obj h3{font-size:16px; margin-bottom:6px;}
+  .obj p{font-size:13.5px; color:var(--ink-soft); margin:0;}
+
+  .journey-challenge{font-family:var(--font-display); font-size:24px; font-weight:600; padding:20px 24px; border-left:3px solid var(--indigo); margin:8px 0 32px; max-width:52ch;}
+  .q-list{list-style:none; margin:0; padding:0; counter-reset:q;}
+  .q-item{counter-increment:q; position:relative; padding:12px 0 12px 34px; border-bottom:1px solid var(--line); cursor:pointer;}
+  .q-item::before{content:counter(q); position:absolute; left:0; top:12px; font-family:var(--font-display); font-weight:600; color:var(--indigo); font-size:14px;}
+  .q-text{font-size:15px; display:flex; align-items:center; gap:8px;}
+  .q-text .hint{margin-left:auto; font-size:11px; color:var(--ink-soft); font-weight:400;}
+  .q-note{display:none; margin:10px 0 4px;}
+  .q-item.expanded .q-note{display:block;}
+  .q-note textarea{width:100%; min-height:80px; resize:vertical; font-family:var(--font-body); font-size:13.5px; padding:12px; border:1px solid var(--line); border-radius:4px; background:var(--amber-dim); color:var(--ink);}
+  .q-note textarea:focus{outline:1px solid var(--indigo);}
+  .outputs{margin-top:32px;}
+  .outputs ul{margin:0; padding-left:20px;}
+  .outputs li{margin-bottom:6px; font-size:15px;}
+
+  .dash-mock{background:var(--paper-dim); border:1px solid var(--line); border-radius:6px; padding:24px; margin-top:8px;}
+  .dash-cards{display:grid; grid-template-columns:repeat(2,1fr); gap:14px;}
+  @media (max-width:700px){.dash-cards{grid-template-columns:1fr;}}
+  .dash-card{background:var(--paper); border:1px solid var(--line); border-radius:4px; padding:18px;}
+  .dash-card .stagepill{display:inline-block; font-size:11px; font-weight:600; padding:2px 9px; border-radius:20px; background:var(--indigo-dim); color:var(--indigo); margin-bottom:10px;}
+  .dash-card h4{font-family:var(--font-display); font-size:17px; margin:0 0 8px; font-weight:600;}
+  .dash-card .row{display:flex; justify-content:space-between; font-size:12.5px; color:var(--ink-soft); margin-top:10px;}
+  .nudges{margin-top:20px;}
+  .nudge{display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-top:1px dashed var(--line); font-size:13.5px; color:var(--ink-soft);}
+  .nudge::before{content:"→"; color:var(--amber); font-weight:700; flex-shrink:0;}
+
+  table{width:100%; border-collapse:collapse; margin-top:8px; max-width:760px;}
+  th,td{text-align:left; padding:10px 14px; border-bottom:1px solid var(--line); font-size:14.5px; vertical-align:middle;}
+  th{font-size:12px; color:var(--ink-soft); font-weight:600; padding-bottom:10px;}
+  td.new{color:var(--indigo); font-weight:600;}
+  .filefield{display:flex; align-items:center; gap:8px;}
+  .filefield input[type=file]{font-size:11.5px; max-width:130px;}
+  .filefield .openlink{font-size:12px; color:var(--sage); font-weight:600; text-decoration:none; display:none; white-space:nowrap;}
+  .filefield .openlink.show{display:inline;}
+
+  .mvp-list{list-style:none; margin:8px 0 0; padding:0; max-width:56ch;}
+  .mvp-list li{display:flex; gap:14px; padding:11px 0; border-bottom:1px solid var(--line); font-size:15px;}
+  .mvp-list li::before{content:"✓"; color:var(--sage); font-weight:700;}
+  .mvp-flow{margin-top:28px; padding:20px 22px; background:var(--indigo-dim); border-radius:4px; font-family:var(--font-display); font-size:16px; color:var(--indigo); font-weight:600; display:flex; flex-wrap:wrap; gap:8px; align-items:center;}
+  .mvp-flow span:not(.arr){cursor:text;}
+
+  .dt-grid{display:grid; grid-template-columns:repeat(5,1fr); gap:1px; background:var(--line); border:1px solid var(--line); margin-top:8px;}
+  @media (max-width:900px){.dt-grid{grid-template-columns:repeat(2,1fr);}}
+  @media (max-width:520px){.dt-grid{grid-template-columns:1fr;}}
+  .dt-cell{background:var(--paper); padding:20px;}
+  .dt-cell .tag{font-size:11px; font-weight:700; color:var(--amber); margin-bottom:8px; display:block;}
+  .dt-cell p{font-size:13px; margin:0 0 10px; color:var(--ink-soft);}
+  .ideate-tags{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;}
+  .ideate-tags span{background:var(--indigo-dim); color:var(--indigo); font-size:11.5px; padding:4px 9px; border-radius:20px; font-weight:600;}
+  .add-tag{display:flex; gap:6px; margin-bottom:10px;}
+  .add-tag input{flex:1; font-size:11.5px; padding:5px 8px; border:1px solid var(--line); border-radius:4px; background:var(--paper);}
+  .add-tag button{font-size:11px; padding:5px 9px; border:none; border-radius:4px; background:var(--indigo); color:var(--paper); cursor:pointer;}
+  .upload-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px;}
+  .upload-row input[type=file]{font-size:11px; max-width:120px;}
+
+  .audience-tags{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+  .audience-tag{display:inline-flex; align-items:center; gap:6px; background:var(--sage-dim); color:#3C5A3E; font-size:12.5px; padding:5px 8px 5px 11px; border-radius:20px; cursor:pointer; border:1px solid transparent;}
+  .audience-tag .tick{width:16px; height:16px; border-radius:50%; border:1.5px solid #3C5A3E; display:flex; align-items:center; justify-content:center; font-size:10px; flex-shrink:0; background:transparent;}
+  .audience-tag.ticked{background:var(--sage); color:#fff; border-color:var(--sage);}
+  .audience-tag.ticked .tick{background:#fff; color:var(--sage); border-color:#fff;}
+
+  footer{border-top:1px solid var(--line); padding:36px 0;}
+  footer p{font-size:13px; color:var(--ink-soft); margin:0;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="topbar">
+    <div class="brand">
+      <span data-key="home.brand" contenteditable="true">Cycle</span>
+      <small data-key="home.brand.tagline" contenteditable="true">a design‑thinking workflow manager</small>
+    </div>
+    <nav class="pages" id="nav"></nav>
+  </div>
+</header>
+
+<main class="shell">
+
+  <!-- HOME -->
+  <section class="page" data-page="home">
+    <div class="hero">
+      <div class="hero-grid">
+        <div>
+          <p class="kicker" data-key="home.kicker" contenteditable="true">Product concept</p>
+          <h1 data-key="home.h1" contenteditable="true">Turn scattered ideas into tested decisions.</h1>
+          <p class="lede" data-key="home.lede" contenteditable="true">Cycle isn't a notes app. Every entry starts as a challenge and moves through empathy, framing, ideas, and evidence — until it becomes a decision someone can act on.</p>
+          <div class="cta-row">
+            <button class="btn primary" data-goto="workflow">See the workflow</button>
+            <button class="btn ghost" data-goto="journey">Walk through an example</button>
+          </div>
+          <div class="stat-strip">
+            <div class="stat"><span class="n" data-key="home.stat1.n" contenteditable="true">8</span><span class="l" data-key="home.stat1.l" contenteditable="true">thinking stages</span></div>
+            <div class="stat"><span class="n" data-key="home.stat2.n" contenteditable="true">11</span><span class="l" data-key="home.stat2.l" contenteditable="true">structured objects</span></div>
+            <div class="stat"><span class="n" data-key="home.stat3.n" contenteditable="true">1</span><span class="l" data-key="home.stat3.l" contenteditable="true">thinking partner, not a repository</span></div>
+          </div>
+
+          <div class="session-bar">
+            <span class="lbl">Save or resume this session</span>
+            <button class="btn small primary" id="downloadJsonBtn">Download JSON</button>
+            <button class="btn small ghost" id="uploadJsonBtn">Upload JSON</button>
+            <button class="btn small ghost" id="presentBtn">Present</button>
+            <input type="file" id="uploadJsonInput" accept="application/json" style="display:none;">
+          </div>
+          <div class="session-status" id="sessionStatus"></div>
+        </div>
+        <div class="quote-card">
+          <span data-key="home.quote" contenteditable="true">"A workflow manager that helps people think together, learn through action, and convert uncertainty into meaningful progress."</span>
+          <span data-key="home.quote.source" contenteditable="true">Product vision</span>
+        </div>
+      </div>
+    </div>
+
+    <section class="block">
+      <p class="kicker" data-key="home.block2.kicker" contenteditable="true">The core idea</p>
+      <h2 data-key="home.block2.h2" contenteditable="true">A note records information. A cycle records progress.</h2>
+      <p data-key="home.block2.p" contenteditable="true">Cycle separates the two on purpose. Every entry gets a role — an observation, a need, an assumption, evidence, an idea, a decision, an action, a risk, or a reflection — so the system can always answer: what did we learn, what changed, what did we decide, and what happens next.</p>
+    </section>
+  </section>
+
+  <!-- WORKFLOW -->
+  <section class="page" data-page="workflow">
+    <p class="kicker" data-key="workflow.kicker" contenteditable="true">Core workflow</p>
+    <h1 data-key="workflow.h1" contenteditable="true">Eight stages, one loop.</h1>
+    <p class="lede" data-key="workflow.lede" contenteditable="true">The path is guided, not linear. A failed test can send a challenge back to Define or Ideate instead of closing it out as a loss.</p>
+
+    <div class="timeline">
+      <div class="stage" data-n="1"><h3 data-key="wf.s1.h3" contenteditable="true">Empathize</h3><div class="meta" data-key="wf.s1.meta" contenteditable="true">Understand people and context</div><p class="body" data-key="wf.s1.body" contenteditable="true">Capture users, observations, interviews, frustrations, and needs.</p><span class="out" data-key="wf.s1.out" contenteditable="true">Output: user insights</span></div>
+      <div class="stage" data-n="2"><h3 data-key="wf.s2.h3" contenteditable="true">Define</h3><div class="meta" data-key="wf.s2.meta" contenteditable="true">Frame the real problem</div><p class="body" data-key="wf.s2.body" contenteditable="true">Identify patterns and write a problem statement.</p><span class="out" data-key="wf.s2.out" contenteditable="true">Output: clear challenge</span></div>
+      <div class="stage" data-n="3"><h3 data-key="wf.s3.h3" contenteditable="true">Ideate</h3><div class="meta" data-key="wf.s3.meta" contenteditable="true">Explore possible solutions</div><p class="body" data-key="wf.s3.body" contenteditable="true">Generate, compare, and combine ideas.</p><span class="out" data-key="wf.s3.out" contenteditable="true">Output: solution concepts</span></div>
+      <div class="stage" data-n="4"><h3 data-key="wf.s4.h3" contenteditable="true">Prototype</h3><div class="meta" data-key="wf.s4.meta" contenteditable="true">Make an idea tangible</div><p class="body" data-key="wf.s4.body" contenteditable="true">Create a rough version, flow, mockup, or process.</p><span class="out" data-key="wf.s4.out" contenteditable="true">Output: prototype</span></div>
+      <div class="stage" data-n="5"><h3 data-key="wf.s5.h3" contenteditable="true">Test</h3><div class="meta" data-key="wf.s5.meta" contenteditable="true">Learn from feedback</div><p class="body" data-key="wf.s5.body" contenteditable="true">Record reactions, evidence, and failures.</p><span class="out" data-key="wf.s5.out" contenteditable="true">Output: validated learning</span></div>
+      <div class="stage" data-n="6"><h3 data-key="wf.s6.h3" contenteditable="true">Decide</h3><div class="meta" data-key="wf.s6.meta" contenteditable="true">Choose what to do next</div><p class="body" data-key="wf.s6.body" contenteditable="true">Evaluate options against criteria.</p><span class="out" data-key="wf.s6.out" contenteditable="true">Output: decision</span></div>
+      <div class="stage" data-n="7"><h3 data-key="wf.s7.h3" contenteditable="true">Execute</h3><div class="meta" data-key="wf.s7.meta" contenteditable="true">Turn the decision into work</div><p class="body" data-key="wf.s7.body" contenteditable="true">Create tasks, owners, milestones, and dependencies.</p><span class="out" data-key="wf.s7.out" contenteditable="true">Output: action plan</span></div>
+      <div class="stage" data-n="8"><h3 data-key="wf.s8.h3" contenteditable="true">Reflect</h3><div class="meta" data-key="wf.s8.meta" contenteditable="true">Improve the process</div><p class="body" data-key="wf.s8.body" contenteditable="true">Review results and lessons.</p><span class="out" data-key="wf.s8.out" contenteditable="true">Output: new insights</span></div>
+    </div>
+
+    <div class="loop-note">
+      <p data-key="workflow.loop" contenteditable="true"><strong>Not strictly linear.</strong> Any stage can send the challenge backward. A prototype with weak feedback returns to Ideate; a decision with no evidence returns to Empathize.</p>
+    </div>
+  </section>
+
+  <!-- SYSTEM -->
+  <section class="page" data-page="system">
+    <p class="kicker" data-key="system.kicker" contenteditable="true">Main objects</p>
+    <h1 data-key="system.h1" contenteditable="true">A network of thinking, not a pile of pages.</h1>
+    <p class="lede" data-key="system.lede" contenteditable="true">Instead of generic notes, Cycle uses structured objects that link to each other across the workflow.</p>
+
+    <div class="obj-grid" id="objGrid">
+      <div class="obj"><h3 data-key="obj1.h3" contenteditable="true">Challenge</h3><p data-key="obj1.p" contenteditable="true">The problem or opportunity being explored.</p></div>
+      <div class="obj"><h3 data-key="obj2.h3" contenteditable="true">Person / stakeholder</h3><p data-key="obj2.p" contenteditable="true">Someone affected by the challenge.</p></div>
+      <div class="obj"><h3 data-key="obj3.h3" contenteditable="true">Insight</h3><p data-key="obj3.p" contenteditable="true">An observation or meaningful learning.</p></div>
+      <div class="obj"><h3 data-key="obj4.h3" contenteditable="true">Problem statement</h3><p data-key="obj4.p" contenteditable="true">A clearly framed need.</p></div>
+      <div class="obj"><h3 data-key="obj5.h3" contenteditable="true">Idea</h3><p data-key="obj5.p" contenteditable="true">A possible response to the problem.</p></div>
+      <div class="obj"><h3 data-key="obj6.h3" contenteditable="true">Prototype</h3><p data-key="obj6.p" contenteditable="true">A tangible representation of an idea.</p></div>
+      <div class="obj"><h3 data-key="obj7.h3" contenteditable="true">Experiment</h3><p data-key="obj7.p" contenteditable="true">A test designed to learn something.</p></div>
+      <div class="obj"><h3 data-key="obj8.h3" contenteditable="true">Decision</h3><p data-key="obj8.p" contenteditable="true">A selected direction and its rationale.</p></div>
+      <div class="obj"><h3 data-key="obj9.h3" contenteditable="true">Task</h3><p data-key="obj9.p" contenteditable="true">An actionable next step.</p></div>
+      <div class="obj"><h3 data-key="obj10.h3" contenteditable="true">Evidence</h3><p data-key="obj10.p" contenteditable="true">Feedback, metrics, documents, or observations.</p></div>
+      <div class="obj"><h3 data-key="obj11.h3" contenteditable="true">Reflection</h3><p data-key="obj11.p" contenteditable="true">What should change in the next cycle.</p></div>
+    </div>
+
+    <section class="block">
+      <p class="kicker" data-key="system.term.kicker" contenteditable="true">Vocabulary</p>
+      <h2 data-key="system.term.h2" contenteditable="true">Language shapes how people think here.</h2>
+      <p data-key="system.term.p" contenteditable="true">Cycle avoids ordinary productivity language on purpose — each traditional item below can carry its own reference file (a screenshot, an old template, a sample export).</p>
+      <table>
+        <tr><th>Traditional term</th><th>Used in Cycle</th><th>Reference file</th></tr>
+        <tbody id="termTable"></tbody>
+      </table>
+    </section>
+  </section>
+
+  <!-- JOURNEY -->
+  <section class="page" data-page="journey">
+    <p class="kicker" data-key="journey.kicker" contenteditable="true">Example journey</p>
+    <h1 data-key="journey.h1" contenteditable="true">Watch a challenge move through the cycle.</h1>
+    <p class="lede" data-key="journey.lede" contenteditable="true">A user opens Cycle with nothing but a frustration. Click any question below to open a note and capture what came up in the meeting.</p>
+
+    <div class="journey-challenge" data-key="journey.challenge" contenteditable="true">"Our internal approval process is too slow."</div>
+
+    <ul class="q-list" id="qList"></ul>
+
+    <div class="outputs">
+      <h3 data-key="journey.outputs.h3" contenteditable="true">What comes out the other end</h3>
+      <ul>
+        <li data-key="journey.out1" contenteditable="true">Problem statement: "Team leads need a faster way to approve routine requests."</li>
+        <li data-key="journey.out2" contenteditable="true">Three solution ideas</li>
+        <li data-key="journey.out3" contenteditable="true">One selected experiment</li>
+        <li data-key="journey.out4" contenteditable="true">Tasks assigned to specific people</li>
+        <li data-key="journey.out5" contenteditable="true">A review date</li>
+        <li data-key="journey.out6" contenteditable="true">A decision record explaining why the idea was selected</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section class="page" data-page="dashboard">
+    <p class="kicker" data-key="dashboard.kicker" contenteditable="true">Home screen</p>
+    <h1 data-key="dashboard.h1" contenteditable="true">Built to show thinking in progress, not a list of files.</h1>
+    <p class="lede" data-key="dashboard.lede" contenteditable="true">Each challenge card carries its stage, confidence, and what's blocking it — not just a title and a date.</p>
+
+    <div class="dash-mock">
+      <div class="dash-cards">
+        <div class="dash-card">
+          <span class="stagepill" data-key="dash.c1.pill" contenteditable="true">Test</span>
+          <h4 data-key="dash.c1.h4" contenteditable="true">Approval process is too slow</h4>
+          <p style="margin:0; font-size:13px; color:var(--ink-soft);" data-key="dash.c1.p" contenteditable="true">Latest insight: leads approve faster on mobile than desktop.</p>
+          <div class="row"><span data-key="dash.c1.row1a" contenteditable="true">Confidence</span><span data-key="dash.c1.row1b" contenteditable="true">High</span></div>
+          <div class="row"><span data-key="dash.c1.row2a" contenteditable="true">Next experiment</span><span data-key="dash.c1.row2b" contenteditable="true">Reviewed Fri</span></div>
+        </div>
+        <div class="dash-card">
+          <span class="stagepill" data-key="dash.c2.pill" contenteditable="true">Ideate</span>
+          <h4 data-key="dash.c2.h4" contenteditable="true">Onboarding drop‑off in week one</h4>
+          <p style="margin:0; font-size:13px; color:var(--ink-soft);" data-key="dash.c2.p" contenteditable="true">5 ideas generated, none compared yet.</p>
+          <div class="row"><span data-key="dash.c2.row1a" contenteditable="true">Confidence</span><span data-key="dash.c2.row1b" contenteditable="true">Low</span></div>
+          <div class="row"><span data-key="dash.c2.row2a" contenteditable="true">Open decisions</span><span data-key="dash.c2.row2b" contenteditable="true">1</span></div>
+        </div>
+      </div>
+
+      <div class="nudges">
+        <h3 style="margin-bottom:10px;" data-key="dash.nudge.h3" contenteditable="true">Suggested next actions</h3>
+        <div class="nudge" data-key="dash.nudge1" contenteditable="true">This challenge has many observations but no defined problem.</div>
+        <div class="nudge" data-key="dash.nudge2" contenteditable="true">You've generated five ideas but haven't compared them.</div>
+        <div class="nudge" data-key="dash.nudge3" contenteditable="true">The prototype has feedback from only one stakeholder.</div>
+        <div class="nudge" data-key="dash.nudge4" contenteditable="true">This decision has no supporting evidence.</div>
+        <div class="nudge" data-key="dash.nudge5" contenteditable="true">The experiment is overdue for review.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROADMAP -->
+  <section class="page" data-page="roadmap">
+    <p class="kicker" data-key="roadmap.kicker" contenteditable="true">First version</p>
+    <h1 data-key="roadmap.h1" contenteditable="true">What ships in v1.</h1>
+    <p class="lede" data-key="roadmap.lede" contenteditable="true">A practical MVP that proves the loop end‑to‑end before anything else gets built.</p>
+
+    <ul class="mvp-list">
+      <li data-key="mvp1" contenteditable="true">Create a challenge</li>
+      <li data-key="mvp2" contenteditable="true">Move through the eight design‑thinking stages</li>
+      <li data-key="mvp3" contenteditable="true">Add structured insights, ideas, experiments, decisions, and tasks</li>
+      <li data-key="mvp4" contenteditable="true">Link items together</li>
+      <li data-key="mvp5" contenteditable="true">Assign owners and due dates</li>
+      <li data-key="mvp6" contenteditable="true">Track assumptions and evidence</li>
+      <li data-key="mvp7" contenteditable="true">Generate a challenge summary</li>
+      <li data-key="mvp8" contenteditable="true">View the project as a visual journey or timeline</li>
+      <li data-key="mvp9" contenteditable="true">Return to earlier stages when new learning appears</li>
+    </ul>
+
+    <div class="mvp-flow">
+      <span data-key="flow1" contenteditable="true">Challenge</span><span class="arr">→</span><span data-key="flow2" contenteditable="true">Insights</span><span class="arr">→</span><span data-key="flow3" contenteditable="true">Problem statement</span><span class="arr">→</span><span data-key="flow4" contenteditable="true">Ideas</span><span class="arr">→</span><span data-key="flow5" contenteditable="true">Experiment</span><span class="arr">→</span><span data-key="flow6" contenteditable="true">Decision</span><span class="arr">→</span><span data-key="flow7" contenteditable="true">Tasks</span><span class="arr">→</span><span data-key="flow8" contenteditable="true">Review</span>
+    </div>
+  </section>
+
+  <!-- DESIGN PROCESS (meta) -->
+  <section class="page" data-page="process">
+    <p class="kicker" data-key="process.kicker" contenteditable="true">Behind the design</p>
+    <h1 data-key="process.h1" contenteditable="true">We used the method on itself.</h1>
+    <p class="lede" data-key="process.lede" contenteditable="true">Cycle's own product process followed the same five stages it asks its users to run.</p>
+
+    <div class="dt-grid">
+      <div class="dt-cell">
+        <span class="tag">Empathize</span>
+        <p data-key="dt.empathize" contenteditable="true">Individual professionals, product teams, operations teams, researchers, managers, consultants, students.</p>
+      </div>
+      <div class="dt-cell">
+        <span class="tag">Define</span>
+        <p data-key="dt.define" contenteditable="true">Teams need a way to turn scattered observations into shared understanding, tested ideas, clear decisions, and accountable next steps.</p>
+      </div>
+      <div class="dt-cell">
+        <span class="tag">Ideate</span>
+        <div class="ideate-tags" id="ideateTags"></div>
+        <div class="add-tag">
+          <input type="text" id="ideateInput" placeholder="Add an interaction model…">
+          <button id="ideateAddBtn">Add</button>
+        </div>
+        <div class="upload-row">
+          <input type="file" id="ideateFile">
+          <a href="#" id="ideateOpen" class="openlink" target="_blank" rel="noopener">Open presentation →</a>
+        </div>
+      </div>
+      <div class="dt-cell">
+        <span class="tag">Prototype</span>
+        <p data-key="dt.prototype" contenteditable="true">Create challenge → add observations → group into themes → write problem statement → generate ideas → select experiment → assign actions.</p>
+        <div class="upload-row">
+          <input type="file" id="protoFile" accept="application/pdf">
+          <a href="#" id="protoOpen" class="openlink" target="_blank" rel="noopener">Open PDF →</a>
+        </div>
+      </div>
+      <div class="dt-cell">
+        <span class="tag">Test</span>
+        <p data-key="dt.test" contenteditable="true">Can people find their next step, explain a decision, trace its evidence, and stop relying on separate notes?</p>
+      </div>
+    </div>
+
+    <section class="block">
+      <p class="kicker" data-key="process.audience.kicker" contenteditable="true">Who it's for</p>
+      <h2 data-key="process.audience.h2" contenteditable="true">Early audience</h2>
+      <p style="font-size:13px; color:var(--ink-soft); margin:0;">Tap a group to mark it as a confirmed early user.</p>
+      <div class="audience-tags" id="audienceTags"></div>
+    </section>
+  </section>
+
+</main>
+
+<footer class="shell">
+  <p data-key="footer.p" contenteditable="true">Cycle — a design‑thinking workflow manager. Product concept overview.</p>
+</footer>
+
+<div class="present-overlay" id="presentOverlay" role="dialog" aria-modal="true" aria-label="Presentation mode">
+  <div class="present-top">
+    <span>Cycle presentation</span>
+    <span class="present-counter" id="presentCounter"></span>
+    <button class="present-close" id="presentClose" type="button">Exit presentation</button>
+  </div>
+  <div class="present-stage"><article class="present-slide" id="presentSlide"></article></div>
+  <div class="present-bottom">
+    <button class="btn ghost" id="presentPrev" type="button">← Previous</button>
+    <button class="btn primary" id="presentNext" type="button">Next →</button>
+  </div>
+</div>
+
+<script>
+/* ---------------------------------------------------------
+   STATE
+--------------------------------------------------------- */
+const defaultState = {
+  texts: {},
+  ticks: {},
+  journeyNotes: {},
+  ideateTags: ["Guided workflow","Visual canvas","Conversational assistant","Timeline","Kanban board","Evidence map","Decision tree"],
+  files: {
+    ideate: null,
+    prototype: null,
+    terminology: [null,null,null,null,null,null,null,null]
+  }
+};
+let state = JSON.parse(JSON.stringify(defaultState));
+
+const journeyQuestions = [
+  "Who experiences this problem?",
+  "What evidence do we have?",
+  "What currently happens?",
+  "Where are the biggest frustrations?",
+  "How might we improve the process?",
+  "What ideas could we try?",
+  "What is the smallest experiment we can run?",
+  "What result would confirm or reject the idea?"
+];
+
+const termRows = [
+  {old:"Note", new:"Insight or observation"},
+  {old:"Folder", new:"Challenge space"},
+  {old:"Project", new:"Design cycle"},
+  {old:"To‑do", new:"Experiment action"},
+  {old:"Meeting note", new:"Learning record"},
+  {old:"Status", new:"Stage and confidence"},
+  {old:"Archive", new:"Completed learning cycle"},
+  {old:"Document", new:"Evidence or artifact"}
+];
+
+const audienceGroups = ["Individual professionals","Product teams","Operations teams","Researchers","Managers","Consultants","Students"];
+
+/* ---------------------------------------------------------
+   NAV
+--------------------------------------------------------- */
+const pages = [
+  {id:'home', label:'Home'},
+  {id:'workflow', label:'Workflow'},
+  {id:'system', label:'System'},
+  {id:'journey', label:'Example'},
+  {id:'dashboard', label:'Dashboard'},
+  {id:'roadmap', label:'Roadmap'},
+  {id:'process', label:'Behind the design'}
+];
+const nav = document.getElementById('nav');
+pages.forEach(p => {
+  const b = document.createElement('button');
+  b.textContent = p.label;
+  b.dataset.page = p.id;
+  b.addEventListener('click', () => go(p.id));
+  nav.appendChild(b);
+});
+function go(id){
+  if(!pages.find(p => p.id === id)) id = 'home';
+  document.querySelectorAll('.page').forEach(el => el.classList.toggle('active', el.dataset.page === id));
+  document.querySelectorAll('nav.pages button').forEach(b => {
+    if(b.dataset.page === id) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current');
+  });
+  window.scrollTo({top:0, behavior:'instant'});
+  history.replaceState(null, '', '#' + id);
+}
+document.querySelectorAll('[data-goto]').forEach(el => el.addEventListener('click', () => go(el.dataset.goto)));
+window.addEventListener('hashchange', () => go(location.hash.slice(1)));
+
+/* ---------------------------------------------------------
+   EDITABLE TEXT — bind every [data-key] element
+--------------------------------------------------------- */
+function bindEditableElements(){
+  document.querySelectorAll('[data-key]').forEach(el => {
+    const key = el.dataset.key;
+    el.addEventListener('input', () => { state.texts[key] = el.innerText; });
+  });
+}
+function applyTexts(){
+  document.querySelectorAll('[data-key]').forEach(el => {
+    const key = el.dataset.key;
+    if(state.texts.hasOwnProperty(key)) el.innerText = state.texts[key];
+  });
+}
+
+/* ---------------------------------------------------------
+   JOURNEY QUESTIONS — expand-to-note instead of inline edit
+--------------------------------------------------------- */
+function renderJourney(){
+  const list = document.getElementById('qList');
+  list.innerHTML = '';
+  journeyQuestions.forEach((q, idx) => {
+    if(!state.journeyNotes[idx]) state.journeyNotes[idx] = {expanded:false, text:''};
+    const li = document.createElement('li');
+    li.className = 'q-item' + (state.journeyNotes[idx].expanded ? ' expanded' : '');
+    li.dataset.idx = idx;
+    li.innerHTML = `
+      <div class="q-text">${q}<span class="hint">click to add meeting notes</span></div>
+      <div class="q-note"><textarea placeholder="Notes from the meeting…">${state.journeyNotes[idx].text}</textarea></div>
+    `;
+    li.querySelector('.q-text').addEventListener('click', () => {
+      state.journeyNotes[idx].expanded = !state.journeyNotes[idx].expanded;
+      li.classList.toggle('expanded', state.journeyNotes[idx].expanded);
+    });
+    const ta = li.querySelector('textarea');
+    ta.addEventListener('click', e => e.stopPropagation());
+    ta.addEventListener('input', () => { state.journeyNotes[idx].text = ta.value; });
+    list.appendChild(li);
+  });
+}
+
+/* ---------------------------------------------------------
+   TERMINOLOGY TABLE — editable cells + per-row file upload
+--------------------------------------------------------- */
+function renderTermTable(){
+  const tbody = document.getElementById('termTable');
+  tbody.innerHTML = '';
+  termRows.forEach((row, i) => {
+    const oldKey = 'term.old.' + i, newKey = 'term.new.' + i;
+    if(!state.texts[oldKey]) state.texts[oldKey] = row.old;
+    if(!state.texts[newKey]) state.texts[newKey] = row.new;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td data-key="${oldKey}" contenteditable="true">${state.texts[oldKey]}</td>
+      <td class="new" data-key="${newKey}" contenteditable="true">${state.texts[newKey]}</td>
+      <td>
+        <div class="filefield">
+          <input type="file" data-term-idx="${i}">
+          <a href="#" class="openlink" target="_blank" rel="noopener">Open →</a>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+    const fileInput = tr.querySelector('input[type=file]');
+    const openLink = tr.querySelector('.openlink');
+    fileInput.addEventListener('change', () => handleFile(fileInput.files[0], (fileRecord, name, type) => {
+      state.files.terminology[i] = fileRecord;
+      refreshTermLink(i, openLink);
+    }));
+    refreshTermLink(i, openLink);
+  });
+  bindEditableElements(); // rebind newly created cells
+}
+function refreshTermLink(i, linkEl){
+  const f = state.files.terminology[i];
+  if(!f){ linkEl.style.display='none'; return; }
+  if(f.url){
+    linkEl.href = f.url;
+    linkEl.target = '_blank';
+    linkEl.textContent = 'Open ' + f.name + ' →';
+    linkEl.onclick = null;
+  }else{
+    linkEl.removeAttribute('href');
+    linkEl.textContent = 'Selected: ' + f.name + ' (select again to open)';
+    linkEl.onclick = e => e.preventDefault();
+  }
+  linkEl.style.display = 'inline-block';
+}
+
+/* ---------------------------------------------------------
+   IDEATE — editable tag list + file upload "presentation"
+--------------------------------------------------------- */
+function renderIdeateTags(){
+  const wrap = document.getElementById('ideateTags');
+  wrap.innerHTML = '';
+  state.ideateTags.forEach((t, i) => {
+    const span = document.createElement('span');
+    span.textContent = t;
+    span.contentEditable = "true";
+    span.addEventListener('input', () => { state.ideateTags[i] = span.innerText; });
+    wrap.appendChild(span);
+  });
+}
+document.getElementById('ideateAddBtn').addEventListener('click', () => {
+  const input = document.getElementById('ideateInput');
+  const val = input.value.trim();
+  if(val){ state.ideateTags.push(val); input.value=''; renderIdeateTags(); }
+});
+document.getElementById('ideateFile').addEventListener('change', function(){
+  handleFile(this.files[0], (fileRecord, name, type) => {
+    state.files.ideate = fileRecord;
+    refreshOpenLink('ideateOpen', state.files.ideate);
+  });
+});
+function refreshOpenLink(elId, fileObj){
+  const link = document.getElementById(elId);
+  if(fileObj && fileObj.url){
+    link.classList.add('show');
+    link.href = fileObj.url;
+    link.target = '_blank';
+    link.textContent = 'Open ' + fileObj.name + ' →';
+  }else if(fileObj){
+    link.classList.add('show');
+    link.removeAttribute('href');
+    link.textContent = 'Selected: ' + fileObj.name + ' (select again to open)';
+  }else{
+    link.classList.remove('show');
+    link.href = '#';
+  }
+}
+
+/* ---------------------------------------------------------
+   PROTOTYPE — PDF upload, open on click
+--------------------------------------------------------- */
+document.getElementById('protoFile').addEventListener('change', function(){
+  handleFile(this.files[0], (fileRecord, name, type) => {
+    state.files.prototype = fileRecord;
+    refreshOpenLink('protoOpen', state.files.prototype);
+  });
+});
+
+/* ---------------------------------------------------------
+   AUDIENCE TAGS — tick to highlight
+--------------------------------------------------------- */
+function renderAudience(){
+  const wrap = document.getElementById('audienceTags');
+  wrap.innerHTML = '';
+  audienceGroups.forEach((name, i) => {
+    if(state.ticks[name] === undefined) state.ticks[name] = false;
+    const tag = document.createElement('div');
+    tag.className = 'audience-tag' + (state.ticks[name] ? ' ticked' : '');
+    tag.innerHTML = `<span class="tick">${state.ticks[name] ? '✓' : ''}</span><span class="lbl" contenteditable="true">${name}</span>`;
+    const tick = tag.querySelector('.tick');
+    tick.addEventListener('click', e => {
+      e.stopPropagation();
+      state.ticks[name] = !state.ticks[name];
+      renderAudience();
+    });
+    tag.addEventListener('click', () => {
+      state.ticks[name] = !state.ticks[name];
+      renderAudience();
+    });
+    wrap.appendChild(tag);
+  });
+}
+
+/* ---------------------------------------------------------
+   FILE HELPER
+--------------------------------------------------------- */
+function handleFile(file, cb){
+  if(!file) return;
+  // Keep serializable metadata plus a temporary URL for immediate preview.
+  // The URL is deliberately removed when exporting JSON because it expires.
+  cb({name:file.name, type:file.type || 'application/octet-stream', size:file.size, lastModified:file.lastModified, url:URL.createObjectURL(file)}, file.name, file.type || 'application/octet-stream');
+}
+
+// Open a selected local file without Blob URLs.
+function openLocalFile(file){
+  if(!file) return;
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.style.display = 'none';
+  input.addEventListener('change', () => {
+    if(input.files && input.files[0]){
+      const f = input.files[0];
+      // Browser security does not expose a reusable file:// path.
+      // Opening must therefore happen through the user's file picker again.
+      const note = document.createElement('div');
+      note.textContent = 'Selected file: ' + f.name + '. Browsers do not allow a local file path to be opened programmatically from a file:// page.';
+      console.info(note.textContent);
+    }
+  });
+  document.body.appendChild(input);
+  input.click();
+  setTimeout(()=>input.remove(), 1000);
+}
+
+/* ---------------------------------------------------------
+   JSON SAVE / LOAD
+--------------------------------------------------------- */
+function makeExportState(){
+  const exported = JSON.parse(JSON.stringify(state));
+  const cleanFile = f => {
+    if(!f) return null;
+    const copy = Object.assign({}, f);
+    delete copy.url;
+    return copy;
+  };
+  exported.files.ideate = cleanFile(exported.files.ideate);
+  exported.files.prototype = cleanFile(exported.files.prototype);
+  exported.files.terminology = exported.files.terminology.map(cleanFile);
+  return exported;
+}
+function mergeStateFromImport(parsed){
+  if(!parsed || typeof parsed !== 'object' || Array.isArray(parsed)){
+    throw new Error('The JSON root must be an object.');
+  }
+  const merged = Object.assign(JSON.parse(JSON.stringify(defaultState)), parsed);
+  if(!merged.texts || typeof merged.texts !== 'object' || Array.isArray(merged.texts)) merged.texts = {};
+  if(!merged.ticks || typeof merged.ticks !== 'object' || Array.isArray(merged.ticks)) merged.ticks = {};
+  if(!merged.journeyNotes || typeof merged.journeyNotes !== 'object' || Array.isArray(merged.journeyNotes)) merged.journeyNotes = {};
+  if(!Array.isArray(merged.ideateTags)) merged.ideateTags = [...defaultState.ideateTags];
+  if(!merged.files || typeof merged.files !== 'object' || Array.isArray(merged.files)) merged.files = JSON.parse(JSON.stringify(defaultState.files));
+  if(!Array.isArray(merged.files.terminology)) merged.files.terminology = [...defaultState.files.terminology];
+  while(merged.files.terminology.length < termRows.length) merged.files.terminology.push(null);
+  return merged;
+}
+document.getElementById('downloadJsonBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(makeExportState(), null, 2)], {type:'application/json;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'cycle-session.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showStatus('Session downloaded.');
+});
+document.getElementById('uploadJsonBtn').addEventListener('click', () => document.getElementById('uploadJsonInput').click());
+document.getElementById('uploadJsonInput').addEventListener('change', function(){
+  const file = this.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onerror = () => showStatus('Could not read the selected file.');
+  reader.onload = () => {
+    try{
+      const parsed = JSON.parse(String(reader.result).replace(/^\uFEFF/, ''));
+      state = mergeStateFromImport(parsed);
+      renderAll();
+      showStatus('Session restored from ' + file.name + '.');
+    }catch(err){
+      console.error('JSON import failed:', err);
+      showStatus('Could not import JSON: ' + (err.message || 'invalid file'));
+    }
+  };
+  reader.readAsText(file);
+  this.value = '';
+});
+function showStatus(msg){
+  const el = document.getElementById('sessionStatus');
+  el.textContent = msg;
+  setTimeout(() => { if(el.textContent === msg) el.textContent=''; }, 4000);
+}
+
+/* ---------------------------------------------------------
+   PRESENTATION MODE
+--------------------------------------------------------- */
+const presentOverlay = document.getElementById('presentOverlay');
+const presentSlide = document.getElementById('presentSlide');
+const presentCounter = document.getElementById('presentCounter');
+let presentIndex = 0;
+function presentText(key, fallback){ return state.texts[key] || fallback; }
+function presentSlides(){
+  return [
+    {kicker:presentText('home.kicker','Implementation review'), title:presentText('home.h1','Turn useful ideas into responsible decisions.'), body:presentText('home.lede','Review every proposal through benefit, limitation, risk, mitigation, and conditions.')},
+    {kicker:'The challenge', title:presentText('journey.challenge','How might we improve operations without creating new risks?'), body:'The source document identifies opportunities in knowledge transfer, commercial extension, procurement, file management, performance, privacy, and IT maintenance.'},
+    {kicker:'Framework', title:'Idea → Benefit → Limitation → Risk → Mitigation → Conditions', body:'A proposal becomes implementation-ready only when its failure modes and required controls are explicit.'},
+    {kicker:'Knowledge transfer', title:presentText('obj1.h3','Knowledge transfer'), body:presentText('obj1.p','Capture experienced staff knowledge in a task guide, keep it current through peer verification, and assign an owner and review schedule.')},
+    {kicker:'Commercial extension', title:presentText('obj3.h3','BCafe and commercial extension'), body:presentText('obj3.p','Validate customer demand and operating economics before investing; consider outsourcing or a food-focused model where appropriate.')},
+    {kicker:'Procurement and controls', title:'Compete more effectively without losing coordination', body:presentText('obj5.p','Use lot-based procurement only when modules are separable, integration ownership is clear, and lot sizes and payment terms attract capable vendors.')},
+    {kicker:'Privacy and IT', title:'Protect information and maintain the system', body:presentText('obj8.p','Encryption, access controls, backups, documented handover, and incident response are required; stopping one channel alone does not solve privacy risk.')},
+    {kicker:'Roadmap', title:presentText('roadmap.h1','Pilot, learn, control, scale.'), body:presentText('roadmap.lede','Begin with low-risk pilots, verify the mitigation, and scale only when the required conditions are in place.')}
+  ];
+}
+function renderPresentSlide(){
+  const slides = presentSlides();
+  const slide = slides[presentIndex];
+  presentSlide.innerHTML = '<p class="kicker"></p><h2></h2><p></p>';
+  presentSlide.querySelector('.kicker').textContent = slide.kicker;
+  presentSlide.querySelector('h2').textContent = slide.title;
+  presentSlide.querySelector('p:last-child').textContent = slide.body;
+  presentCounter.textContent = (presentIndex + 1) + ' / ' + slides.length;
+  document.getElementById('presentPrev').disabled = presentIndex === 0;
+  document.getElementById('presentNext').textContent = presentIndex === slides.length - 1 ? 'Restart →' : 'Next →';
+}
+function openPresentation(){
+  presentIndex = 0;
+  renderPresentSlide();
+  presentOverlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  document.getElementById('presentClose').focus();
+}
+function closePresentation(){
+  presentOverlay.classList.remove('open');
+  document.body.style.overflow = '';
+  document.getElementById('presentBtn').focus();
+}
+function nextPresentationSlide(){
+  const last = presentSlides().length - 1;
+  presentIndex = presentIndex === last ? 0 : presentIndex + 1;
+  renderPresentSlide();
+}
+function previousPresentationSlide(){
+  presentIndex = Math.max(0, presentIndex - 1);
+  renderPresentSlide();
+}
+document.getElementById('presentBtn').addEventListener('click', openPresentation);
+document.getElementById('presentClose').addEventListener('click', closePresentation);
+document.getElementById('presentNext').addEventListener('click', nextPresentationSlide);
+document.getElementById('presentPrev').addEventListener('click', previousPresentationSlide);
+document.addEventListener('keydown', e => {
+  if(!presentOverlay.classList.contains('open')) return;
+  if(e.key === 'Escape') closePresentation();
+  else if(e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextPresentationSlide(); }
+  else if(e.key === 'ArrowLeft') { e.preventDefault(); previousPresentationSlide(); }
+});
+
+/* ---------------------------------------------------------
+   RENDER ALL
+--------------------------------------------------------- */
+function renderAll(){
+  applyTexts();
+  renderJourney();
+  renderTermTable();
+  renderIdeateTags();
+  refreshOpenLink('ideateOpen', state.files.ideate);
+  refreshOpenLink('protoOpen', state.files.prototype);
+  renderAudience();
+}
+
+bindEditableElements();
+renderAll();
+go(location.hash ? location.hash.slice(1) : 'home');
+</script>
+
+</body>
+</html>

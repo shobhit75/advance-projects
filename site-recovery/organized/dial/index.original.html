@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- This site is hosted on Netlify. Anyone can build and deploy a site
+     like this one for free: https://netlify.new/?utm_campaign=loops&utm_source=ai-legible&utm_medium=owned&utm_content=comment&utm_id=8e266cd1-3076-4041-989a-8be6bb58f98c
+     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DIAL</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0a0a; --surface: #111111; --surface2: #1a1a1a; --surface3: #222222;
+  --border: #2a2a2a; --accent: #00e676; --accent2: #69f0ae;
+  --red: #ff1744; --blue: #40c4ff; --text: #f0f0f0; --muted: #555;
+}
+
+html, body {
+  height: 100%; background: var(--bg); color: var(--text);
+  font-family: 'DM Mono', monospace;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+body::before {
+  content:''; position:fixed; inset:0;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(0,230,118,0.05) 0%, transparent 70%),
+    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.012) 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,0.012) 40px);
+  pointer-events:none; z-index:0;
+}
+
+.phone {
+  position:relative; z-index:1; width:360px;
+  background:var(--surface); border:1px solid var(--border); border-radius:32px;
+  padding:24px 22px 28px;
+  box-shadow:0 0 0 1px rgba(0,230,118,0.07),0 40px 80px rgba(0,0,0,0.85),inset 0 1px 0 rgba(255,255,255,0.04);
+  animation:rise 0.6s cubic-bezier(0.16,1,0.3,1) both;
+}
+@keyframes rise { from{opacity:0;transform:translateY(28px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+
+.header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.logo { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px; color:var(--accent); text-shadow:0 0 20px rgba(0,230,118,0.35); }
+.header-right { display:flex; align-items:center; gap:10px; }
+.status-dot { width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent); animation:pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+
+.tab-bar { display:flex; gap:3px; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:3px; }
+.tab { font-size:8px; letter-spacing:1.5px; padding:5px 9px; border-radius:7px; cursor:pointer; color:var(--muted); transition:all 0.2s; }
+.tab.active { background:var(--surface3); color:var(--accent); }
+
+.display { background:var(--bg); border:1px solid var(--border); border-radius:16px; padding:14px 18px; margin-bottom:16px; min-height:68px; position:relative; overflow:hidden; }
+.display::after { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,rgba(0,230,118,0.3),transparent); }
+.display-label { font-size:9px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:5px; }
+.display-number { font-size:26px; font-weight:300; letter-spacing:4px; color:var(--text); min-height:34px; display:flex; align-items:center; gap:2px; transition:color 0.2s; }
+.display-number.has-number { color:var(--accent2); }
+.cursor { width:2px; height:26px; background:var(--accent); border-radius:1px; animation:blink 1s step-end infinite; flex-shrink:0; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+.view { display:none; }
+.view.active { display:block; animation:fadeIn 0.2s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+
+.folder-strip { display:flex; gap:7px; margin-bottom:14px; overflow-x:auto; scrollbar-width:none; padding-bottom:2px; }
+.folder-strip::-webkit-scrollbar { display:none; }
+
+.folder-pill {
+  flex-shrink:0; display:flex; align-items:center; gap:5px;
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:20px; padding:5px 12px; font-size:10px; color:var(--muted);
+  cursor:pointer; transition:all 0.18s; white-space:nowrap; letter-spacing:0.5px;
+}
+.folder-pill:hover { border-color:#3a3a3a; color:var(--text); }
+.folder-pill.selected { border-color:var(--accent); color:var(--accent); background:rgba(0,230,118,0.06); }
+.folder-pill .pill-count { background:var(--surface3); border-radius:8px; padding:1px 5px; font-size:8px; color:var(--muted); }
+
+.contacts-list { max-height:190px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--border) transparent; display:flex; flex-direction:column; gap:5px; margin-bottom:12px; }
+.contacts-list::-webkit-scrollbar { width:3px; }
+.contacts-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+.contact-row { display:flex; align-items:center; gap:10px; background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:9px 12px; transition:all 0.15s; position:relative; }
+.contact-row:hover { border-color:#3a3a3a; background:var(--surface3); }
+.contact-avatar { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; border:1.5px solid transparent; }
+.contact-info { flex:1; min-width:0; }
+.contact-name { font-size:12px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.contact-num  { font-size:10px; color:var(--muted); letter-spacing:1px; margin-top:1px; }
+.contact-actions { display:flex; gap:5px; flex-shrink:0; }
+.btn-icon { width:28px; height:28px; border-radius:8px; background:var(--surface3); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px; cursor:pointer; transition:all 0.15s; }
+.btn-icon:hover { border-color:var(--accent); }
+.btn-icon.danger:hover { border-color:var(--red); }
+
+.keypad { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:16px; }
+.key { background:var(--surface2); border:1px solid var(--border); border-radius:13px; padding:13px 8px 11px; cursor:pointer; text-align:center; transition:all 0.12s cubic-bezier(0.34,1.56,0.64,1); position:relative; overflow:hidden; user-select:none; -webkit-tap-highlight-color:transparent; }
+.key::before { content:''; position:absolute; inset:0; background:radial-gradient(circle at center,rgba(0,230,118,0.15),transparent 70%); opacity:0; transition:opacity 0.2s; }
+.key:hover { border-color:#3a3a3a; transform:scale(1.03); }
+.key:active { transform:scale(0.93); background:#222; }
+.key:active::before { opacity:1; }
+.key-digit  { font-family:'Bebas Neue',sans-serif; font-size:24px; color:var(--text); line-height:1; display:block; }
+.key-letters { font-size:7px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; display:block; margin-top:2px; min-height:9px; }
+
+.actions { display:grid; grid-template-columns:1fr 54px 1fr; gap:8px; align-items:center; }
+.btn-secondary { background:var(--surface2); border:1px solid var(--border); border-radius:13px; padding:13px; cursor:pointer; color:var(--muted); font-size:18px; text-align:center; transition:all 0.15s; display:flex; align-items:center; justify-content:center; user-select:none; }
+.btn-secondary:hover { border-color:#3a3a3a; color:var(--text); }
+.btn-secondary:active { transform:scale(0.92); }
+.btn-call { width:54px; height:54px; border-radius:50%; background:linear-gradient(135deg,var(--accent),#00c853); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:21px; box-shadow:0 0 22px rgba(0,230,118,0.4),0 4px 12px rgba(0,0,0,0.4); transition:all 0.15s cubic-bezier(0.34,1.56,0.64,1); text-decoration:none; user-select:none; }
+.btn-call:hover { transform:scale(1.1); box-shadow:0 0 34px rgba(0,230,118,0.6),0 6px 20px rgba(0,0,0,0.5); }
+.btn-call:active { transform:scale(0.91); }
+.btn-call.empty { background:#2a2a2a; box-shadow:none; pointer-events:none; }
+
+.section-title { font-size:9px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; }
+
+/* FOLDERS GRID */
+.folders-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; max-height:200px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+.folders-grid::-webkit-scrollbar { width:3px; }
+.folders-grid::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+.folder-card { background:var(--surface2); border:1px solid var(--border); border-radius:14px; padding:12px 14px 14px; position:relative; overflow:hidden; transition:all 0.18s; }
+.folder-card:hover { border-color:#3a3a3a; transform:translateY(-1px); }
+.folder-card-icon  { font-size:22px; margin-bottom:6px; display:block; }
+.folder-card-name  { font-size:11px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.folder-card-count { font-size:9px; color:var(--muted); margin-top:2px; }
+.folder-card-bar   { position:absolute; bottom:0; left:0; right:0; height:2px; opacity:0.7; }
+
+/* folder card top-right actions */
+.folder-card-actions { position:absolute; top:7px; right:7px; display:flex; gap:3px; opacity:0; transition:opacity 0.15s; }
+.folder-card:hover .folder-card-actions { opacity:1; }
+.mini-btn { width:20px; height:20px; border-radius:5px; background:var(--surface3); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:10px; cursor:pointer; transition:all 0.12s; color:var(--muted); }
+.mini-btn:hover { border-color:var(--accent); color:var(--accent); }
+.mini-btn.del:hover { border-color:var(--red); color:var(--red); }
+
+.new-folder-btn { background:var(--surface2); border:1px dashed var(--border); border-radius:14px; padding:12px 14px; cursor:pointer; transition:all 0.18s; display:flex; align-items:center; justify-content:center; gap:6px; color:var(--muted); font-size:11px; }
+.new-folder-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+.field { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:9px 12px; color:var(--text); font-family:'DM Mono',monospace; font-size:11px; outline:none; transition:border-color 0.2s; width:100%; margin-bottom:8px; }
+.field:focus { border-color:var(--accent); }
+.field::placeholder { color:var(--muted); }
+
+/* MODALS */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.82); backdrop-filter:blur(6px); z-index:100; display:none; align-items:center; justify-content:center; }
+.modal-overlay.open { display:flex; animation:fadeIn 0.2s ease; }
+.modal { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:22px 20px; width:300px; box-shadow:0 20px 60px rgba(0,0,0,0.9); animation:modalPop 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes modalPop { from{transform:scale(0.88);opacity:0} to{transform:scale(1);opacity:1} }
+.modal-title { font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; color:var(--accent); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+
+.emoji-picker { display:grid; grid-template-columns:repeat(8,1fr); gap:4px; margin-bottom:12px; }
+.emoji-opt { width:28px; height:28px; border-radius:7px; background:var(--surface2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px; cursor:pointer; transition:all 0.15s; }
+.emoji-opt:hover, .emoji-opt.sel { border-color:var(--accent); background:rgba(0,230,118,0.1); }
+.color-picker { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+.color-opt { width:22px; height:22px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:all 0.15s; }
+.color-opt:hover, .color-opt.sel { border-color:var(--text); transform:scale(1.15); }
+.modal-btns { display:flex; gap:8px; justify-content:flex-end; margin-top:4px; }
+.mbtn { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:9px 16px; font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); cursor:pointer; transition:all 0.15s; letter-spacing:0.5px; }
+.mbtn:hover { color:var(--text); border-color:#3a3a3a; }
+.mbtn.primary { background:rgba(0,230,118,0.1); border-color:rgba(0,230,118,0.4); color:var(--accent); }
+.mbtn.primary:hover { background:rgba(0,230,118,0.18); }
+.mbtn.blue { background:rgba(64,196,255,0.1); border-color:rgba(64,196,255,0.4); color:var(--blue); }
+.mbtn.blue:hover { background:rgba(64,196,255,0.18); }
+
+/* SHARE MODAL SPECIFIC */
+.share-link-box {
+  background:var(--bg); border:1px solid var(--border); border-radius:10px;
+  padding:10px 12px; margin-bottom:10px;
+  font-size:10px; color:var(--muted); word-break:break-all; line-height:1.6;
+  max-height:80px; overflow-y:auto;
+}
+.share-link-box.highlight { border-color:var(--accent); color:var(--accent2); }
+
+.share-method-row { display:flex; gap:8px; margin-bottom:12px; }
+.share-method { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px 8px; text-align:center; cursor:pointer; transition:all 0.15s; }
+.share-method:hover { border-color:var(--accent); }
+.share-method .sm-icon { font-size:20px; display:block; margin-bottom:4px; }
+.share-method .sm-label { font-size:9px; color:var(--muted); letter-spacing:1px; }
+
+/* IMPORT BANNER */
+.import-banner {
+  background:rgba(64,196,255,0.08); border:1px solid rgba(64,196,255,0.3);
+  border-radius:12px; padding:12px 14px; margin-bottom:14px;
+  display:none;
+}
+.import-banner.show { display:flex; gap:10px; align-items:center; animation:fadeIn 0.3s ease; }
+.import-banner-icon { font-size:22px; flex-shrink:0; }
+.import-banner-text { flex:1; }
+.import-banner-title { font-size:11px; color:var(--blue); letter-spacing:1px; }
+.import-banner-sub { font-size:9px; color:var(--muted); margin-top:2px; }
+.import-banner-actions { display:flex; gap:6px; margin-top:8px; }
+
+/* QR-like visual code */
+.share-visual {
+  display:grid; grid-template-columns:repeat(12,1fr); gap:2px;
+  margin:10px 0; padding:10px; background:var(--bg); border-radius:10px; border:1px solid var(--border);
+}
+.sv-cell { aspect-ratio:1; border-radius:2px; }
+
+/* RIPPLE */
+.ripple { position:absolute; border-radius:50%; background:rgba(0,230,118,0.2); transform:scale(0); animation:ripple-out 0.5s linear; pointer-events:none; }
+@keyframes ripple-out { to{transform:scale(4);opacity:0} }
+
+/* TOAST */
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(16px); background:var(--surface2); border:1px solid var(--accent); border-radius:12px; padding:9px 18px; font-size:11px; color:var(--accent); letter-spacing:1px; opacity:0; transition:all 0.3s ease; z-index:300; white-space:nowrap; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+.empty-state { text-align:center; padding:20px; color:var(--muted); font-size:11px; letter-spacing:1px; }
+.empty-state .big { font-size:28px; display:block; margin-bottom:8px; }
+
+/* Shared badge on folder card */
+.shared-badge { position:absolute; top:7px; left:7px; background:rgba(0,230,118,0.15); border:1px solid rgba(0,230,118,0.3); border-radius:6px; padding:1px 5px; font-size:8px; color:var(--accent); letter-spacing:1px; }
+
+/* UPLOAD ZONE */
+.upload-zone {
+  border:1.5px dashed var(--border); border-radius:14px;
+  padding:18px 14px; text-align:center;
+  cursor:pointer; transition:all 0.2s; position:relative;
+  background:var(--surface2); margin-bottom:10px;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color:var(--accent); background:rgba(0,230,118,0.04);
+}
+.upload-zone input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+.upload-zone-icon { font-size:26px; display:block; margin-bottom:6px; }
+.upload-zone-label { font-size:10px; color:var(--muted); letter-spacing:1px; line-height:1.6; }
+.upload-zone-sub { font-size:9px; color:var(--muted); opacity:0.6; margin-top:4px; }
+.upload-zone.drag-over .upload-zone-icon { animation:bounce 0.4s ease; }
+@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+
+/* FILE PREVIEW */
+.file-preview {
+  background:var(--bg); border:1px solid var(--border); border-radius:10px;
+  padding:10px 12px; margin-bottom:10px; display:none;
+}
+.file-preview.show { display:block; animation:fadeIn 0.2s ease; }
+.file-preview-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.file-preview-icon { font-size:18px; }
+.file-preview-name { font-size:11px; color:var(--text); flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.file-preview-size { font-size:9px; color:var(--muted); }
+.file-preview-rows { font-size:10px; color:var(--accent2); letter-spacing:0.5px; }
+.file-preview-list { max-height:80px; overflow-y:auto; scrollbar-width:thin; }
+.file-preview-list::-webkit-scrollbar { width:2px; }
+.file-preview-list::-webkit-scrollbar-thumb { background:var(--border); }
+.file-preview-item { font-size:10px; color:var(--muted); padding:2px 0; border-bottom:1px solid var(--border); display:flex; gap:8px; }
+.file-preview-item span:first-child { color:var(--text); min-width:80px; }
+
+/* UPLOAD FOLDER MODAL */
+.upload-format-tabs { display:flex; gap:4px; margin-bottom:12px; }
+.fmt-tab { flex:1; text-align:center; padding:6px; border-radius:8px; border:1px solid var(--border); background:var(--surface2); font-size:9px; letter-spacing:1px; color:var(--muted); cursor:pointer; transition:all 0.15s; }
+.fmt-tab.active { border-color:var(--accent); color:var(--accent); background:rgba(0,230,118,0.07); }
+
+/* PROGRESS BAR */
+.progress-bar { height:3px; background:var(--border); border-radius:2px; margin:8px 0; overflow:hidden; display:none; }
+.progress-bar.show { display:block; }
+.progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:2px; width:0%; transition:width 0.3s ease; }
+
+/* DOWNLOAD BTN */
+.download-row { display:flex; gap:6px; margin-top:8px; }
+
+/* CONTACT LIST PICKER */
+.upload-source-tabs { display:flex; gap:4px; margin-bottom:12px; }
+.src-tab { flex:1; text-align:center; padding:7px 4px; border-radius:9px; border:1px solid var(--border); background:var(--surface2); font-size:9px; letter-spacing:1px; color:var(--muted); cursor:pointer; transition:all 0.15s; }
+.src-tab.active { border-color:var(--accent); color:var(--accent); background:rgba(0,230,118,0.07); }
+
+.pick-search { background:var(--bg); border:1px solid var(--border); border-radius:9px; padding:8px 12px; color:var(--text); font-family:'DM Mono',monospace; font-size:11px; outline:none; width:100%; margin-bottom:8px; transition:border-color 0.2s; }
+.pick-search:focus { border-color:var(--accent); }
+.pick-search::placeholder { color:var(--muted); }
+
+.pick-list { max-height:170px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; margin-bottom:10px; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+.pick-list::-webkit-scrollbar { width:3px; }
+.pick-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+.pick-row { display:flex; align-items:center; gap:9px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:8px 11px; cursor:pointer; transition:all 0.13s; user-select:none; }
+.pick-row:hover { border-color:#3a3a3a; background:var(--surface3); }
+.pick-row.checked { border-color:var(--accent); background:rgba(0,230,118,0.05); }
+.pick-checkbox { width:16px; height:16px; border-radius:5px; border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.15s; font-size:9px; }
+.pick-row.checked .pick-checkbox { background:var(--accent); border-color:var(--accent); color:#000; }
+.pick-avatar { width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; }
+.pick-info { flex:1; min-width:0; }
+.pick-name { font-size:11px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pick-num  { font-size:9px; color:var(--muted); letter-spacing:0.5px; }
+.pick-folder-tag { font-size:8px; color:var(--muted); letter-spacing:1px; flex-shrink:0; }
+
+.pick-actions-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.pick-sel-count { font-size:9px; color:var(--accent); letter-spacing:1px; }
+.pick-sel-all { font-size:9px; color:var(--muted); cursor:pointer; letter-spacing:1px; transition:color 0.15s; }
+.pick-sel-all:hover { color:var(--text); }
+
+.pick-empty { text-align:center; padding:16px; color:var(--muted); font-size:10px; letter-spacing:1px; }
+
+/* panel visibility */
+.upload-panel { display:none; }
+.upload-panel.active { display:block; animation:fadeIn 0.18s ease; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="header">
+    <span class="logo">DIAL</span>
+    <div class="header-right">
+      <div class="tab-bar">
+        <div class="tab active" onclick="switchTab('dial')">DIAL</div>
+        <div class="tab" onclick="switchTab('contacts')">LIST</div>
+        <div class="tab" onclick="switchTab('folders')">FOLDERS</div>
+      </div>
+      <div class="status-dot"></div>
+    </div>
+  </div>
+
+  <div class="display">
+    <div class="display-label" id="displayLabel">Enter number</div>
+    <div class="display-number" id="display"><span class="cursor"></span></div>
+  </div>
+
+  <!-- DIAL VIEW -->
+  <div class="view active" id="view-dial">
+    <div class="folder-strip" id="dialStrip"></div>
+    <div id="quickDialBar"></div>
+    <div class="keypad">
+      <div class="key" onclick="pressKey('1')"><span class="key-digit">1</span><span class="key-letters">&nbsp;</span></div>
+      <div class="key" onclick="pressKey('2')"><span class="key-digit">2</span><span class="key-letters">ABC</span></div>
+      <div class="key" onclick="pressKey('3')"><span class="key-digit">3</span><span class="key-letters">DEF</span></div>
+      <div class="key" onclick="pressKey('4')"><span class="key-digit">4</span><span class="key-letters">GHI</span></div>
+      <div class="key" onclick="pressKey('5')"><span class="key-digit">5</span><span class="key-letters">JKL</span></div>
+      <div class="key" onclick="pressKey('6')"><span class="key-digit">6</span><span class="key-letters">MNO</span></div>
+      <div class="key" onclick="pressKey('7')"><span class="key-digit">7</span><span class="key-letters">PQRS</span></div>
+      <div class="key" onclick="pressKey('8')"><span class="key-digit">8</span><span class="key-letters">TUV</span></div>
+      <div class="key" onclick="pressKey('9')"><span class="key-digit">9</span><span class="key-letters">WXYZ</span></div>
+      <div class="key" onclick="pressKey('*')"><span class="key-digit">*</span><span class="key-letters">&nbsp;</span></div>
+      <div class="key" id="key0" onclick="pressKey('0')"><span class="key-digit">0</span><span class="key-letters">+</span></div>
+      <div class="key" onclick="pressKey('#')"><span class="key-digit">#</span><span class="key-letters">&nbsp;</span></div>
+    </div>
+    <div class="actions">
+      <div class="btn-secondary" onclick="clearAll()">⌫</div>
+      <a class="btn-call empty" id="callBtn" href="index.html#" onclick="makeCall(event)">📞</a>
+      <div class="btn-secondary" onclick="deleteLast()">✕</div>
+    </div>
+  </div>
+
+  <!-- CONTACTS VIEW -->
+  <div class="view" id="view-contacts">
+    <div class="folder-strip" id="filterStrip"></div>
+    <div class="contacts-list" id="contactsList"></div>
+    <div class="section-title">ADD CONTACT <span style="color:var(--accent);font-size:9px;" id="totalBadge"></span></div>
+    <input class="field" id="newName" placeholder="Name" />
+    <input class="field" id="newNum"  placeholder="Phone number" type="tel" />
+    <select class="field" id="newFolder"></select>
+    <div class="mbtn primary" onclick="addContact()" style="text-align:center;width:100%;">+ ADD</div>
+  </div>
+
+  <!-- FOLDERS VIEW -->
+  <div class="view" id="view-folders">
+    <!-- Import banner (shown when shared link is detected) -->
+    <div class="import-banner" id="importBanner">
+      <div class="import-banner-icon">📥</div>
+      <div style="flex:1;">
+        <div class="import-banner-title" id="importTitle">Shared folder received</div>
+        <div class="import-banner-sub" id="importSub">Tap to import contacts</div>
+        <div class="import-banner-actions">
+          <div class="mbtn blue" onclick="importSharedFolder()" style="padding:6px 12px;font-size:10px;">IMPORT</div>
+          <div class="mbtn" onclick="dismissImport()" style="padding:6px 12px;font-size:10px;">DISMISS</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">YOUR FOLDERS</div>
+    <div class="folders-grid" id="foldersGrid"></div>
+    <div class="section-title" style="margin-top:6px;">MOVE CONTACT TO FOLDER</div>
+    <select class="field" id="moveContact"></select>
+    <select class="field" id="moveTarget"></select>
+    <div class="mbtn primary" onclick="moveContactToFolder()" style="text-align:center;width:100%;">MOVE →</div>
+  </div>
+</div>
+
+<!-- MODAL: New Folder -->
+<div class="modal-overlay" id="folderModal">
+  <div class="modal">
+    <div class="modal-title">📁 NEW FOLDER</div>
+    <input class="field" id="folderName" placeholder="Folder name" maxlength="20" />
+    <div class="section-title" style="margin-bottom:8px;">ICON</div>
+    <div class="emoji-picker" id="emojiPicker"></div>
+    <div class="section-title" style="margin-bottom:8px;">COLOR</div>
+    <div class="color-picker" id="colorPicker"></div>
+    <div class="modal-btns">
+      <div class="mbtn" onclick="closeModal('folderModal')">CANCEL</div>
+      <div class="mbtn primary" onclick="saveFolder()">CREATE</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Share Folder -->
+<div class="modal-overlay" id="shareModal">
+  <div class="modal">
+    <div class="modal-title" id="shareModalTitle">🔗 SHARE FOLDER</div>
+
+    <div class="section-title" style="margin-bottom:6px;">SHAREABLE LINK</div>
+    <div class="share-link-box highlight" id="shareLinkBox">Generating…</div>
+
+    <!-- Visual fingerprint of folder data -->
+    <div class="share-visual" id="shareVisual"></div>
+
+    <div class="section-title" style="margin-bottom:8px;">SHARE VIA</div>
+    <div class="share-method-row">
+      <div class="share-method" onclick="shareVia('copy')">
+        <span class="sm-icon">📋</span><span class="sm-label">COPY</span>
+      </div>
+      <div class="share-method" onclick="shareVia('whatsapp')">
+        <span class="sm-icon">💬</span><span class="sm-label">WHATSAPP</span>
+      </div>
+      <div class="share-method" onclick="shareVia('sms')">
+        <span class="sm-icon">📱</span><span class="sm-label">SMS</span>
+      </div>
+      <div class="share-method" onclick="shareVia('native')">
+        <span class="sm-icon">↗️</span><span class="sm-label">MORE</span>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-bottom:8px;">IMPORT FROM LINK</div>
+    <input class="field" id="importLinkInput" placeholder="Paste a shared link here…" style="margin-bottom:8px;" />
+
+    <div class="modal-btns">
+      <div class="mbtn" onclick="closeModal('shareModal')">CLOSE</div>
+      <div class="mbtn blue" onclick="importFromInput()">IMPORT LINK</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Upload to Folder -->
+<div class="modal-overlay" id="uploadModal">
+  <div class="modal">
+    <div class="modal-title" id="uploadModalTitle">📤 UPLOAD TO FOLDER</div>
+
+    <!-- Source selector -->
+    <div class="upload-source-tabs">
+      <div class="src-tab active" onclick="setSrcTab('file',this)">📂 FILE</div>
+      <div class="src-tab" onclick="setSrcTab('contacts',this)">👥 CONTACT LIST</div>
+      <div class="src-tab" onclick="setSrcTab('export',this)">⬇️ EXPORT</div>
+    </div>
+
+    <!-- ── PANEL: File Upload ── -->
+    <div class="upload-panel active" id="panel-file">
+      <div class="upload-format-tabs">
+        <div class="fmt-tab active" onclick="setFmtTab('csv',this)">CSV</div>
+        <div class="fmt-tab" onclick="setFmtTab('vcf',this)">vCard</div>
+        <div class="fmt-tab" onclick="setFmtTab('json',this)">JSON</div>
+        <div class="fmt-tab" onclick="setFmtTab('txt',this)">TXT</div>
+      </div>
+      <div id="fmtHint" style="font-size:9px;color:var(--muted);margin-bottom:10px;letter-spacing:0.5px;line-height:1.7;"></div>
+      <div class="upload-zone" id="dropZone"
+        ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <input type="file" id="fileInput" accept=".csv,.vcf,.json,.txt,text/csv,text/vcard,application/json,text/plain"
+          onchange="handleFileSelect(event)" />
+        <span class="upload-zone-icon" id="dropIcon">📂</span>
+        <div class="upload-zone-label">Drop file here or <span style="color:var(--accent)">browse</span></div>
+        <div class="upload-zone-sub">CSV · vCard (.vcf) · JSON · TXT</div>
+      </div>
+      <div class="progress-bar" id="uploadProgress"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="file-preview" id="filePreview">
+        <div class="file-preview-header">
+          <span class="file-preview-icon" id="previewIcon">📄</span>
+          <span class="file-preview-name" id="previewName"></span>
+          <span class="file-preview-size" id="previewSize"></span>
+        </div>
+        <div class="file-preview-rows" id="previewRows"></div>
+        <div class="file-preview-list" id="previewList"></div>
+      </div>
+    </div>
+
+    <!-- ── PANEL: Contact List Picker ── -->
+    <div class="upload-panel" id="panel-contacts">
+      <input class="pick-search" id="pickSearch" placeholder="Search contacts…" oninput="renderPickList()" />
+      <div class="pick-actions-bar">
+        <span class="pick-sel-count" id="pickSelCount">0 selected</span>
+        <span class="pick-sel-all" onclick="toggleSelectAll()">SELECT ALL</span>
+      </div>
+      <div class="pick-list" id="pickList"></div>
+    </div>
+
+    <!-- ── PANEL: Export ── -->
+    <div class="upload-panel" id="panel-export">
+      <div style="font-size:10px;color:var(--muted);margin-bottom:12px;letter-spacing:0.5px;line-height:1.7;">
+        Download all contacts in this folder in your preferred format.
+      </div>
+      <div class="download-row" style="flex-direction:column;gap:8px;">
+        <div class="mbtn" onclick="downloadFolder('csv')" style="text-align:center;font-size:11px;">⬇️ Download as CSV</div>
+        <div class="mbtn" onclick="downloadFolder('vcf')" style="text-align:center;font-size:11px;">⬇️ Download as vCard (.vcf)</div>
+        <div class="mbtn" onclick="downloadFolder('json')" style="text-align:center;font-size:11px;">⬇️ Download as JSON</div>
+      </div>
+    </div>
+
+    <div class="modal-btns" style="margin-top:14px;">
+      <div class="mbtn" onclick="closeModal('uploadModal')">CANCEL</div>
+      <div class="mbtn primary" id="uploadConfirmBtn" onclick="confirmUpload()" style="display:none;">IMPORT FILE</div>
+      <div class="mbtn primary" id="pickConfirmBtn" onclick="confirmPickContacts()" style="display:none;">ADD SELECTED</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONSTANTS ────────────────────────────────────────────
+const EMOJIS = ['📁','👨‍👩‍👧','💼','🏠','⭐','🚨','👥','🏢','❤️','🎓','🎉','💊','🏋️','✈️','🎮','🔧'];
+const COLORS  = ['#00e676','#40c4ff','#ea80fc','#ff9100','#ffd740','#ff1744','#69f0ae','#b0bec5'];
+
+// ─── STATE ───────────────────────────────────────────────
+const S = {
+  folders: [
+    { id:'f1', name:'Family',    icon:'👨‍👩‍👧', color:'#ff9100' },
+    { id:'f2', name:'Work',      icon:'💼',    color:'#40c4ff' },
+    { id:'f3', name:'Emergency', icon:'🚨',    color:'#ff1744' },
+  ],
+  contacts: [
+    { id:'c1', name:'Mom',       number:'+917890123456', folder:'f1' },
+    { id:'c2', name:'Dad',       number:'+917654321098', folder:'f1' },
+    { id:'c3', name:'Sister',    number:'+919988776655', folder:'f1' },
+    { id:'c4', name:'Boss',      number:'+919876543210', folder:'f2' },
+    { id:'c5', name:'Colleague', number:'+918765432109', folder:'f2' },
+    { id:'c6', name:'Ambulance', number:'102',           folder:'f3' },
+    { id:'c7', name:'Police',    number:'100',           folder:'f3' },
+    { id:'c8', name:'Fire Dept', number:'101',           folder:'f3' },
+  ],
+  tab:'dial', dialFilter:null, listFilter:'all',
+  number:'', cname:'',
+  selEmoji:'📁', selColor:'#00e676',
+  sharingFolderId: null,
+  pendingImport: null,
+};
+
+// ─── UTILS ───────────────────────────────────────────────
+const uid   = () => 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const byFid = id => S.folders.find(f=>f.id===id);
+const inFld = fid => S.contacts.filter(c=>c.folder===fid);
+const esc   = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/'/g,'&#39;');
+
+function toast(msg, color) {
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.style.borderColor = color||'var(--accent)';
+  t.style.color = color||'var(--accent)';
+  t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ─── ENCODE / DECODE SHARE ────────────────────────────────
+/**
+ * Encodes a folder + its contacts into a URL-safe base64 string
+ * Format: { v:1, folder:{id,name,icon,color}, contacts:[{name,number}] }
+ */
+function encodeShareData(folderId) {
+  const f = byFid(folderId);
+  if (!f) return null;
+  const contacts = inFld(folderId).map(c=>({n:c.name, p:c.number}));
+  const payload = { v:1, f:{ nm:f.name, ic:f.icon, cl:f.color }, cs: contacts };
+  const json = JSON.stringify(payload);
+  // base64url encode
+  const b64 = btoa(unescape(encodeURIComponent(json)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  return b64;
+}
+
+function decodeShareData(b64) {
+  try {
+    // restore base64url → base64
+    let padded = b64.replace(/-/g,'+').replace(/_/g,'/');
+    while (padded.length % 4) padded += '=';
+    const json = decodeURIComponent(escape(atob(padded)));
+    const d = JSON.parse(json);
+    if (d.v!==1 || !d.f || !d.cs) return null;
+    return d;
+  } catch(e) { return null; }
+}
+
+function buildShareURL(folderId) {
+  const encoded = encodeShareData(folderId);
+  if (!encoded) return null;
+  // Use current page URL as base, add hash param
+  const base = location.href.split('#')[0].split('?')[0];
+  return `${base}#share=${encoded}`;
+}
+
+// ─── SHARE UI ─────────────────────────────────────────────
+function openShareModal(folderId) {
+  S.sharingFolderId = folderId;
+  const f = byFid(folderId);
+  const cnt = inFld(folderId).length;
+  document.getElementById('shareModalTitle').textContent = `${f.icon} SHARE · ${f.name}`;
+
+  const url = buildShareURL(folderId);
+  document.getElementById('shareLinkBox').textContent = url;
+  document.getElementById('importLinkInput').value = '';
+
+  // visual fingerprint (decorative pixel pattern from encoded string)
+  renderShareVisual(encodeShareData(folderId), f.color);
+
+  document.getElementById('shareModal').classList.add('open');
+}
+
+function renderShareVisual(b64str, color) {
+  const grid = document.getElementById('shareVisual');
+  const cells = 48; // 12×4 visible
+  let h = '';
+  for (let i=0; i<cells; i++) {
+    const charCode = b64str.charCodeAt(i % b64str.length) || 0;
+    const on = (charCode >> (i%7)) & 1;
+    const opacity = on ? (0.3 + (charCode % 5)*0.12).toFixed(2) : '0.04';
+    h += `<div class="sv-cell" style="background:${color};opacity:${opacity};"></div>`;
+  }
+  grid.innerHTML = h;
+}
+
+function shareVia(method) {
+  const url = buildShareURL(S.sharingFolderId);
+  const f   = byFid(S.sharingFolderId);
+  const msg = `📞 ${f.icon} ${f.name} contacts — open to import: ${url}`;
+
+  if (method==='copy') {
+    navigator.clipboard.writeText(url).then(()=>{
+      toast('✅ Link copied to clipboard!');
+    }).catch(()=>{
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = url; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+      toast('✅ Link copied!');
+    });
+  } else if (method==='whatsapp') {
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+  } else if (method==='sms') {
+    window.open(`sms:?body=${encodeURIComponent(msg)}`);
+  } else if (method==='native') {
+    if (navigator.share) {
+      navigator.share({ title:`${f.icon} ${f.name} contacts`, text:msg, url });
+    } else {
+      navigator.clipboard.writeText(url).then(()=>toast('✅ Link copied (share not supported)'));
+    }
+  }
+}
+
+// ─── IMPORT ──────────────────────────────────────────────
+function importFromInput() {
+  const raw = document.getElementById('importLinkInput').value.trim();
+  const match = raw.match(/#share=([A-Za-z0-9_\-]+)/);
+  if (!match) { toast('⚠️ Invalid share link', 'var(--red)'); return; }
+  const data = decodeShareData(match[1]);
+  if (!data) { toast('⚠️ Corrupted share data', 'var(--red)'); return; }
+  doImport(data);
+  closeModal('shareModal');
+}
+
+function doImport(data) {
+  // Check if folder with same name already exists
+  const existing = S.folders.find(f=>f.name===data.f.nm);
+  let fid;
+  if (existing) {
+    fid = existing.id;
+    toast(`📥 Added to existing "${data.f.nm}"`, 'var(--blue)');
+  } else {
+    fid = 'f'+Date.now();
+    S.folders.push({ id:fid, name:data.f.nm, icon:data.f.ic, color:data.f.cl });
+    toast(`📥 Folder "${data.f.nm}" imported!`, 'var(--blue)');
+  }
+  let added = 0;
+  data.cs.forEach(c=>{
+    // skip duplicates by number
+    if (!S.contacts.find(x=>x.number===c.p)) {
+      S.contacts.push({ id:uid(), name:c.n, number:c.p, folder:fid });
+      added++;
+    }
+  });
+  if (added===0) toast('ℹ️ All contacts already exist');
+  renderAllViews();
+  dismissImport();
+}
+
+function importSharedFolder() {
+  if (S.pendingImport) doImport(S.pendingImport);
+}
+
+function dismissImport() {
+  S.pendingImport = null;
+  document.getElementById('importBanner').classList.remove('show');
+  // Clear hash so it doesn't re-trigger
+  history.replaceState(null,'',location.pathname+location.search);
+}
+
+// ─── CHECK URL ON LOAD ────────────────────────────────────
+function checkURLForShare() {
+  const hash = location.hash;
+  const match = hash.match(/#share=([A-Za-z0-9_\-]+)/);
+  if (!match) return;
+  const data = decodeShareData(match[1]);
+  if (!data) return;
+  S.pendingImport = data;
+  const banner = document.getElementById('importBanner');
+  document.getElementById('importTitle').textContent = `${data.f.ic} "${data.f.nm}" shared with you`;
+  document.getElementById('importSub').textContent = `${data.cs.length} contact${data.cs.length!==1?'s':''} ready to import`;
+  banner.classList.add('show');
+  // Switch to folders tab to show the banner
+  switchTab('folders');
+}
+
+// ─── TABS ────────────────────────────────────────────────
+function switchTab(tab) {
+  S.tab=tab;
+  document.querySelectorAll('.tab').forEach((el,i)=>{
+    el.classList.toggle('active',['dial','contacts','folders'][i]===tab);
+  });
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+tab).classList.add('active');
+  if (tab==='dial')     renderDialView();
+  if (tab==='contacts') renderContactsView();
+  if (tab==='folders')  renderFoldersView();
+}
+
+function renderAllViews() {
+  renderDialView();
+  if (S.tab==='contacts') renderContactsView();
+  if (S.tab==='folders')  renderFoldersView();
+}
+
+// ─── DISPLAY ─────────────────────────────────────────────
+function updateDisplay() {
+  const n=S.number, el=document.getElementById('display'), cb=document.getElementById('callBtn');
+  document.getElementById('displayLabel').textContent=S.cname||(n?'Ready to call':'Enter number');
+  if (!n) {
+    el.innerHTML='<span class="cursor"></span>';
+    el.classList.remove('has-number'); cb.classList.add('empty'); cb.removeAttribute('href');
+  } else {
+    el.innerHTML=`<span>${fmtNum(n)}</span><span class="cursor"></span>`;
+    el.classList.add('has-number'); cb.classList.remove('empty'); cb.href=`tel:${n}`;
+  }
+}
+function fmtNum(n) {
+  if(!n||n.startsWith('+')) return n;
+  if(n.length<=5) return n;
+  return n.slice(0,n.length-5)+' '+n.slice(-5);
+}
+function pressKey(d) {
+  if(S.number.length>=15) return;
+  S.number+=d; S.cname=''; updateDisplay();
+  if('vibrate' in navigator) navigator.vibrate(8);
+}
+function deleteLast() { S.number=S.number.slice(0,-1); updateDisplay(); }
+function clearAll()   { S.number=''; S.cname=''; updateDisplay(); }
+function loadContact(name,num) {
+  S.number=num.replace(/\s/g,''); S.cname=name;
+  updateDisplay(); switchTab('dial'); toast(`Loaded: ${name}`);
+}
+function makeCall(e) {
+  if(!S.number){e.preventDefault();return;}
+  toast(`📞 Calling ${S.cname||S.number}…`);
+}
+
+let lpt;
+const k0=document.getElementById('key0');
+k0.addEventListener('mousedown',()=>{lpt=setTimeout(()=>{S.number='+';updateDisplay();},650);});
+k0.addEventListener('mouseup',()=>clearTimeout(lpt));
+k0.addEventListener('touchstart',()=>{lpt=setTimeout(()=>{S.number='+';updateDisplay();},650);},{passive:true});
+k0.addEventListener('touchend',()=>clearTimeout(lpt));
+
+document.addEventListener('keydown',e=>{
+  if(S.tab!=='dial') return;
+  if('0123456789*#+'.includes(e.key)) pressKey(e.key);
+  else if(e.key==='Backspace') deleteLast();
+  else if(e.key==='Escape')    clearAll();
+  else if(e.key==='Enter'&&S.number){toast('📞 Calling…');window.location.href=`tel:${S.number}`;}
+});
+
+document.querySelectorAll('.key,.btn-secondary').forEach(el=>{
+  el.addEventListener('click',function(){
+    const r=document.createElement('span'); r.className='ripple';
+    const rc=this.getBoundingClientRect();
+    r.style.cssText=`width:${rc.width}px;height:${rc.width}px;left:0;top:${(rc.height-rc.width)/2}px`;
+    this.appendChild(r); setTimeout(()=>r.remove(),500);
+  });
+});
+
+// ─── DIAL VIEW ───────────────────────────────────────────
+function renderDialView() {
+  const strip=document.getElementById('dialStrip');
+  const allSel=S.dialFilter===null;
+  let h=`<div class="folder-pill ${allSel?'selected':''}" onclick="setDialFilter(null)">📋 ALL <span class="pill-count">${S.contacts.length}</span></div>`;
+  S.folders.forEach(f=>{
+    const cnt=inFld(f.id).length; if(!cnt) return;
+    const sel=S.dialFilter===f.id;
+    h+=`<div class="folder-pill ${sel?'selected':''}" onclick="setDialFilter('${f.id}')"
+      style="${sel?`border-color:${f.color};color:${f.color};background:${f.color}11;`:''}">
+      ${f.icon} ${esc(f.name)} <span class="pill-count">${cnt}</span></div>`;
+  });
+  strip.innerHTML=h;
+
+  const qbar=document.getElementById('quickDialBar');
+  if(S.dialFilter){
+    const folder=byFid(S.dialFilter), cts=inFld(S.dialFilter);
+    if(cts.length){
+      let qh=`<div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;">`;
+      cts.forEach(c=>{
+        qh+=`<div class="folder-pill" onclick="loadContact('${esc(c.name)}','${c.number}')"
+          style="border-color:${folder.color}44;">${folder.icon} ${esc(c.name)}</div>`;
+      });
+      qh+=`</div>`; qbar.innerHTML=qh;
+    } else qbar.innerHTML='';
+  } else qbar.innerHTML='';
+}
+function setDialFilter(fid){S.dialFilter=fid;renderDialView();}
+
+// ─── CONTACTS VIEW ────────────────────────────────────────
+function renderContactsView() {
+  const strip=document.getElementById('filterStrip');
+  const allSel=S.listFilter==='all';
+  let h=`<div class="folder-pill ${allSel?'selected':''}" onclick="setListFilter('all')">📋 ALL <span class="pill-count">${S.contacts.length}</span></div>`;
+  S.folders.forEach(f=>{
+    const cnt=inFld(f.id).length, sel=S.listFilter===f.id;
+    h+=`<div class="folder-pill ${sel?'selected':''}" onclick="setListFilter('${f.id}')"
+      style="${sel?`border-color:${f.color};color:${f.color};background:${f.color}11;`:''}">
+      ${f.icon} ${esc(f.name)} <span class="pill-count">${cnt}</span></div>`;
+  });
+  strip.innerHTML=h;
+
+  const list=document.getElementById('contactsList');
+  const cts=S.listFilter==='all'?S.contacts:inFld(S.listFilter);
+  document.getElementById('totalBadge').textContent=`${S.contacts.length} total`;
+
+  if(!cts.length){
+    list.innerHTML=`<div class="empty-state"><span class="big">👥</span>No contacts here</div>`;
+  } else {
+    list.innerHTML=cts.map(c=>{
+      const f=byFid(c.folder),clr=f?f.color:'#555',icon=f?f.icon:'👤';
+      return `<div class="contact-row">
+        <div class="contact-avatar" style="background:${clr}18;border-color:${clr}44;">${icon}</div>
+        <div class="contact-info">
+          <div class="contact-name">${esc(c.name)}</div>
+          <div class="contact-num">${esc(c.number)}</div>
+        </div>
+        <div class="contact-actions">
+          <div class="btn-icon" onclick="loadContact('${esc(c.name)}','${c.number}')" title="Dial">📞</div>
+          <div class="btn-icon danger" onclick="deleteContact('${c.id}')" title="Remove" style="font-size:11px;">✕</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('newFolder').innerHTML=S.folders.map(f=>`<option value="${f.id}">${f.icon} ${esc(f.name)}</option>`).join('');
+}
+function setListFilter(fid){S.listFilter=fid;renderContactsView();}
+function addContact(){
+  const name=document.getElementById('newName').value.trim();
+  const num=document.getElementById('newNum').value.trim();
+  const fid=document.getElementById('newFolder').value;
+  if(!name||!num){toast('⚠️ Name and number required','var(--red)');return;}
+  S.contacts.push({id:uid(),name,number:num,folder:fid});
+  document.getElementById('newName').value='';
+  document.getElementById('newNum').value='';
+  renderContactsView(); renderDialView();
+  toast(`✅ ${name} added`);
+}
+function deleteContact(id){
+  const c=S.contacts.find(x=>x.id===id);
+  S.contacts=S.contacts.filter(x=>x.id!==id);
+  renderContactsView(); renderDialView();
+  if(c) toast(`🗑 ${c.name} removed`);
+}
+
+// ─── FOLDERS VIEW ────────────────────────────────────────
+function renderFoldersView() {
+  const grid=document.getElementById('foldersGrid');
+  let h=S.folders.map(f=>{
+    const cnt=inFld(f.id).length;
+    return `<div class="folder-card" style="border-color:${f.color}33;">
+      <div class="folder-card-actions">
+        <div class="mini-btn" onclick="openUploadModal('${f.id}')" title="Upload contacts">📤</div>
+        <div class="mini-btn" onclick="openShareModal('${f.id}')" title="Share folder">🔗</div>
+        <div class="mini-btn del" onclick="deleteFolder('${f.id}',event)" title="Delete">✕</div>
+      </div>
+      <span class="folder-card-icon">${f.icon}</span>
+      <div class="folder-card-name">${esc(f.name)}</div>
+      <div class="folder-card-count">${cnt} contact${cnt!==1?'s':''}</div>
+      <div class="folder-card-bar" style="background:${f.color};"></div>
+    </div>`;
+  }).join('');
+  h+=`<div class="new-folder-btn" onclick="openModal('folderModal')">＋ New Folder</div>`;
+  grid.innerHTML=h;
+
+  const mc=document.getElementById('moveContact');
+  const mt=document.getElementById('moveTarget');
+  mc.innerHTML=S.contacts.map(c=>`<option value="${c.id}">${esc(c.name)} · ${esc(c.number)}</option>`).join('');
+  mt.innerHTML=S.folders.map(f=>`<option value="${f.id}">${f.icon} ${esc(f.name)}</option>`).join('');
+}
+function moveContactToFolder(){
+  const cid=document.getElementById('moveContact').value;
+  const fid=document.getElementById('moveTarget').value;
+  const c=S.contacts.find(x=>x.id===cid),f=byFid(fid);
+  if(!c||!f) return;
+  c.folder=fid; renderFoldersView(); renderDialView();
+  toast(`✅ ${c.name} → ${f.icon} ${f.name}`);
+}
+function deleteFolder(id,e){
+  e.stopPropagation();
+  const remaining=S.folders.filter(x=>x.id!==id);
+  if(!remaining.length){toast('⚠️ Keep at least one folder','var(--red)');return;}
+  S.contacts.forEach(c=>{if(c.folder===id) c.folder=remaining[0].id;});
+  S.folders=remaining;
+  renderFoldersView(); renderDialView();
+  if(S.tab==='contacts') renderContactsView();
+  toast('🗑 Folder deleted');
+}
+
+// ─── NEW FOLDER MODAL ────────────────────────────────────
+function openModal(id){
+  if(id==='folderModal'){
+    S.selEmoji='📁'; S.selColor='#00e676';
+    document.getElementById('folderName').value='';
+    renderModalPickers();
+  }
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+function renderModalPickers(){
+  document.getElementById('emojiPicker').innerHTML=EMOJIS.map(e=>
+    `<div class="emoji-opt ${e===S.selEmoji?'sel':''}" onclick="selEmoji('${e}')">${e}</div>`).join('');
+  document.getElementById('colorPicker').innerHTML=COLORS.map(c=>
+    `<div class="color-opt ${c===S.selColor?'sel':''}" style="background:${c};" onclick="selColor('${c}')"></div>`).join('');
+}
+function selEmoji(e){S.selEmoji=e;renderModalPickers();}
+function selColor(c){S.selColor=c;renderModalPickers();}
+function saveFolder(){
+  const name=document.getElementById('folderName').value.trim();
+  if(!name){toast('⚠️ Enter a folder name','var(--red)');return;}
+  S.folders.push({id:'f'+Date.now(),name,icon:S.selEmoji,color:S.selColor});
+  closeModal('folderModal'); renderFoldersView(); renderDialView();
+  toast(`📁 "${name}" created`);
+}
+
+document.querySelectorAll('.modal-overlay').forEach(el=>{
+  el.addEventListener('click',function(e){ if(e.target===this) this.classList.remove('open'); });
+});
+
+// ─── UPLOAD / DOWNLOAD ───────────────────────────────────
+
+const FMT_HINTS = {
+  csv:  'Name,Phone<br>John Doe,+91 98765 43210<br>Jane Smith,9876543210',
+  vcf:  'BEGIN:VCARD<br>FN:John Doe<br>TEL:+919876543210<br>END:VCARD',
+  json: '[{"name":"John","number":"+91 98765 43210"},…]',
+  txt:  'John Doe: +91 98765 43210<br>Jane Smith - 9876543210',
+};
+
+let uploadState = { folderId:null, parsed:[], fmt:'csv', srcTab:'file', pickedIds:new Set() };
+
+// ── SOURCE TAB ──
+function setSrcTab(tab, el) {
+  uploadState.srcTab = tab;
+  document.querySelectorAll('.src-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.upload-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+tab).classList.add('active');
+  // Show/hide confirm buttons
+  document.getElementById('uploadConfirmBtn').style.display = tab==='file' && uploadState.parsed.length ? 'block' : 'none';
+  document.getElementById('pickConfirmBtn').style.display   = tab==='contacts' ? 'block' : 'none';
+  if (tab==='contacts') { uploadState.pickedIds=new Set(); renderPickList(); }
+}
+
+function setFmtTab(fmt, el) {
+  uploadState.fmt = fmt;
+  document.querySelectorAll('.fmt-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('fmtHint').innerHTML = FMT_HINTS[fmt];
+  resetFilePreview();
+}
+
+function openUploadModal(fid) {
+  const f = byFid(fid);
+  uploadState.folderId = fid;
+  uploadState.parsed   = [];
+  uploadState.fmt      = 'csv';
+  uploadState.srcTab   = 'file';
+  uploadState.pickedIds = new Set();
+  document.getElementById('uploadModalTitle').textContent = `📤 ${f.icon} ${f.name}`;
+  // Reset to file tab
+  document.querySelectorAll('.src-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+  document.querySelectorAll('.upload-panel').forEach((p,i)=>p.classList.toggle('active',i===0));
+  document.querySelectorAll('.fmt-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+  document.getElementById('fmtHint').innerHTML = FMT_HINTS['csv'];
+  document.getElementById('fileInput').value = '';
+  document.getElementById('uploadConfirmBtn').style.display = 'none';
+  document.getElementById('pickConfirmBtn').style.display   = 'none';
+  resetFilePreview();
+  document.getElementById('uploadModal').classList.add('open');
+}
+
+function resetFilePreview() {
+  document.getElementById('filePreview').classList.remove('show');
+  document.getElementById('uploadProgress').classList.remove('show');
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('dropIcon').textContent = '📂';
+  uploadState.parsed = [];
+  document.getElementById('uploadConfirmBtn').style.display = 'none';
+}
+
+// ── CONTACT LIST PICKER ──
+function renderPickList() {
+  const fid   = uploadState.folderId;
+  const query = document.getElementById('pickSearch').value.trim().toLowerCase();
+  // Show all contacts NOT already in this folder
+  const pool  = S.contacts.filter(c => c.folder !== fid);
+  const filtered = query
+    ? pool.filter(c => c.name.toLowerCase().includes(query) || c.number.includes(query))
+    : pool;
+
+  const list = document.getElementById('pickList');
+  if (!filtered.length) {
+    list.innerHTML = `<div class="pick-empty">${pool.length===0 ? 'No contacts in other folders' : 'No matches found'}</div>`;
+    updatePickCount();
+    return;
+  }
+
+  list.innerHTML = filtered.map(c => {
+    const f    = byFid(c.folder);
+    const clr  = f ? f.color : '#555';
+    const icon = f ? f.icon  : '👤';
+    const chk  = uploadState.pickedIds.has(c.id);
+    return `<div class="pick-row ${chk?'checked':''}" onclick="togglePick('${c.id}')">
+      <div class="pick-checkbox">${chk?'✓':''}</div>
+      <div class="pick-avatar" style="background:${clr}18;border:1.5px solid ${clr}44;">${icon}</div>
+      <div class="pick-info">
+        <div class="pick-name">${esc(c.name)}</div>
+        <div class="pick-num">${esc(c.number)}</div>
+      </div>
+      <div class="pick-folder-tag">${f ? esc(f.name) : ''}</div>
+    </div>`;
+  }).join('');
+  updatePickCount();
+}
+
+function togglePick(cid) {
+  if (uploadState.pickedIds.has(cid)) uploadState.pickedIds.delete(cid);
+  else uploadState.pickedIds.add(cid);
+  renderPickList();
+}
+
+function toggleSelectAll() {
+  const fid   = uploadState.folderId;
+  const query = document.getElementById('pickSearch').value.trim().toLowerCase();
+  const pool  = S.contacts.filter(c => c.folder !== fid);
+  const filtered = query ? pool.filter(c=>c.name.toLowerCase().includes(query)||c.number.includes(query)) : pool;
+  const allSelected = filtered.every(c=>uploadState.pickedIds.has(c.id));
+  if (allSelected) filtered.forEach(c=>uploadState.pickedIds.delete(c.id));
+  else             filtered.forEach(c=>uploadState.pickedIds.add(c.id));
+  renderPickList();
+}
+
+function updatePickCount() {
+  const n = uploadState.pickedIds.size;
+  document.getElementById('pickSelCount').textContent = `${n} selected`;
+  document.getElementById('pickConfirmBtn').style.display = (uploadState.srcTab==='contacts') ? 'block' : 'none';
+  document.getElementById('pickConfirmBtn').textContent = n ? `ADD ${n} CONTACT${n!==1?'S':''}` : 'ADD SELECTED';
+  document.getElementById('pickConfirmBtn').style.opacity = n ? '1' : '0.4';
+  document.getElementById('pickConfirmBtn').style.pointerEvents = n ? 'auto' : 'none';
+}
+
+function confirmPickContacts() {
+  const fid  = uploadState.folderId;
+  const f    = byFid(fid);
+  const ids  = [...uploadState.pickedIds];
+  if (!ids.length) { toast('⚠️ Select at least one contact','var(--red)'); return; }
+
+  // Copy contacts into this folder (they keep their original folder too — this ADDS a clone)
+  // If same number already in target folder, skip
+  let added=0, skipped=0;
+  ids.forEach(id => {
+    const src = S.contacts.find(c=>c.id===id);
+    if (!src) return;
+    if (inFld(fid).find(c=>c.number===src.number)) { skipped++; return; }
+    S.contacts.push({ id:uid(), name:src.name, number:src.number, folder:fid });
+    added++;
+  });
+
+  closeModal('uploadModal');
+  renderAllViews();
+  let msg = `✅ ${added} contact${added!==1?'s':''} added to ${f.icon} ${f.name}`;
+  if (skipped) msg += ` (${skipped} already there)`;
+  toast(msg);
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.add('drag-over');
+}
+function handleDragLeave() {
+  document.getElementById('dropZone').classList.remove('drag-over');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+}
+
+function processFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  // Auto-detect format
+  if (['csv','vcf','json','txt'].includes(ext)) {
+    uploadState.fmt = ext === 'vcf' ? 'vcf' : ext;
+    document.querySelectorAll('.fmt-tab').forEach((t,i)=>{
+      t.classList.toggle('active', ['csv','vcf','json','txt'][i]===uploadState.fmt);
+    });
+  }
+
+  // Show progress
+  document.getElementById('uploadProgress').classList.add('show');
+  animateProgress(0, 60, 300, ()=>{
+    const reader = new FileReader();
+    reader.onload = e => {
+      animateProgress(60, 100, 200, ()=>{
+        const contacts = parseFileContent(e.target.result, uploadState.fmt, file.name);
+        uploadState.parsed = contacts;
+        showFilePreview(file, contacts);
+        document.getElementById('uploadProgress').classList.remove('show');
+      });
+    };
+    reader.readAsText(file);
+  });
+}
+
+function animateProgress(from, to, duration, cb) {
+  const fill = document.getElementById('progressFill');
+  const start = performance.now();
+  function step(now) {
+    const t = Math.min((now-start)/duration, 1);
+    fill.style.width = (from + (to-from)*t) + '%';
+    if (t < 1) requestAnimationFrame(step);
+    else if (cb) cb();
+  }
+  requestAnimationFrame(step);
+}
+
+// ── PARSERS ──
+function parseFileContent(text, fmt, filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  const f = ext==='vcf' ? 'vcf' : fmt;
+  try {
+    if (f==='csv')  return parseCSV(text);
+    if (f==='vcf')  return parseVCF(text);
+    if (f==='json') return parseJSON(text);
+    if (f==='txt')  return parseTXT(text);
+  } catch(e) { toast('⚠️ Parse error: '+e.message,'var(--red)'); }
+  return [];
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l=>l.trim());
+  const results = [];
+  // Detect if first line is header
+  const first = lines[0].toLowerCase();
+  const start = (first.includes('name')||first.includes('phone')||first.includes('tel')) ? 1 : 0;
+  for (let i=start; i<lines.length; i++) {
+    const cols = lines[i].split(',').map(c=>c.trim().replace(/^"|"$/g,''));
+    if (cols.length>=2) {
+      const name = cols[0], number = cols[1];
+      if (name && number) results.push({name, number});
+    } else if (cols.length===1 && cols[0].match(/\d{5,}/)) {
+      results.push({name:'Contact '+(i), number:cols[0]});
+    }
+  }
+  return results;
+}
+
+function parseVCF(text) {
+  const cards = text.split(/END:VCARD/i).filter(c=>c.trim());
+  return cards.map(card=>{
+    const nameMatch  = card.match(/FN[^:]*:(.+)/i) || card.match(/N[^:]*:([^;\n]+)/i);
+    const telMatch   = card.match(/TEL[^:]*:([^\r\n]+)/i);
+    const name   = nameMatch  ? nameMatch[1].trim().replace(/\r/g,'') : 'Unknown';
+    const number = telMatch   ? telMatch[1].trim().replace(/\r/g,'').replace(/\s/g,'') : '';
+    return number ? {name, number} : null;
+  }).filter(Boolean);
+}
+
+function parseJSON(text) {
+  const data = JSON.parse(text);
+  const arr = Array.isArray(data) ? data : (data.contacts || data.cs || []);
+  return arr.map(item=>({
+    name:   item.name || item.n || item.Name || 'Unknown',
+    number: String(item.number || item.phone || item.tel || item.p || item.Phone || ''),
+  })).filter(c=>c.number);
+}
+
+function parseTXT(text) {
+  const lines = text.trim().split(/\r?\n/).filter(l=>l.trim());
+  return lines.map(line=>{
+    // Supports: "Name: number", "Name - number", "Name number"
+    const m = line.match(/^(.+?)[\s]*[-:–][\s]*(\+?[\d\s\-().]{7,})$/) ||
+              line.match(/^(.+?)\s+(\+?[\d]{10,})$/);
+    if (m) return { name:m[1].trim(), number:m[2].trim().replace(/\s/g,'') };
+    // pure number line
+    const pure = line.match(/(\+?[\d\s\-().]{7,})/);
+    if (pure) return { name:'Contact', number:pure[1].trim().replace(/\s/g,'') };
+    return null;
+  }).filter(Boolean);
+}
+
+// ── PREVIEW ──
+function showFilePreview(file, contacts) {
+  const prev = document.getElementById('filePreview');
+  prev.classList.add('show');
+  document.getElementById('previewName').textContent = file.name;
+  document.getElementById('previewSize').textContent = (file.size/1024).toFixed(1)+'KB';
+  document.getElementById('previewRows').textContent = `${contacts.length} contact${contacts.length!==1?'s':''} found`;
+  document.getElementById('previewIcon').textContent = contacts.length>0 ? '✅' : '⚠️';
+  document.getElementById('dropIcon').textContent = contacts.length>0 ? '✅' : '❌';
+
+  document.getElementById('previewList').innerHTML = contacts.slice(0,8).map(c=>
+    `<div class="file-preview-item"><span>${esc(c.name)}</span><span>${esc(c.number)}</span></div>`
+  ).join('') + (contacts.length>8 ? `<div class="file-preview-item" style="color:var(--muted)">…and ${contacts.length-8} more</div>` : '');
+
+  if (contacts.length>0) {
+    document.getElementById('uploadConfirmBtn').style.display = 'block';
+    document.getElementById('pickConfirmBtn').style.display   = 'none';
+  }
+}
+
+function confirmUpload() {
+  const fid = uploadState.folderId;
+  const f   = byFid(fid);
+  if (!uploadState.parsed.length) return;
+  let added=0, skipped=0;
+  uploadState.parsed.forEach(c=>{
+    if (!S.contacts.find(x=>x.number===c.number)) {
+      S.contacts.push({id:uid(), name:c.name, number:c.number, folder:fid});
+      added++;
+    } else skipped++;
+  });
+  closeModal('uploadModal');
+  renderAllViews();
+  let msg = `✅ ${added} contact${added!==1?'s':''} added to ${f.icon} ${f.name}`;
+  if (skipped) msg += ` (${skipped} skipped)`;
+  toast(msg);
+}
+
+// ── DOWNLOAD / EXPORT ──
+function downloadFolder(fmt) {
+  const fid = uploadState.folderId;
+  const f   = byFid(fid);
+  const cts = inFld(fid);
+  if (!cts.length) { toast('⚠️ No contacts to export','var(--red)'); return; }
+
+  let content='', mime='', ext=fmt;
+  if (fmt==='csv') {
+    content = 'Name,Phone\n' + cts.map(c=>`"${c.name}","${c.number}"`).join('\n');
+    mime = 'text/csv';
+  } else if (fmt==='vcf') {
+    content = cts.map(c=>
+      `BEGIN:VCARD\r\nVERSION:3.0\r\nFN:${c.name}\r\nTEL:${c.number}\r\nEND:VCARD`
+    ).join('\r\n');
+    mime = 'text/vcard'; ext='vcf';
+  } else if (fmt==='json') {
+    const payload = { folder:{name:f.name,icon:f.icon,color:f.color}, contacts:cts.map(c=>({name:c.name,number:c.number})) };
+    content = JSON.stringify(payload, null, 2);
+    mime = 'application/json';
+  }
+
+  const blob = new Blob([content],{type:mime});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `${f.name.replace(/\s+/g,'_')}_contacts.${ext}`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast(`⬇️ ${f.name} exported as .${ext}`);
+}
+
+// ─── INIT ─────────────────────────────────────────────────
+renderDialView();
+updateDisplay();
+checkURLForShare();
+</script>
+</body>
+</html>

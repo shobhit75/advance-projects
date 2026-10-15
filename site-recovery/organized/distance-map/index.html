@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- This site is hosted on Netlify. Anyone can build and deploy a site
+     like this one for free: https://netlify.new/?utm_campaign=loops&utm_source=ai-legible&utm_medium=owned&utm_content=comment&utm_id=7f184036-f8a3-496f-beff-9c833203e2fb
+     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Route Distance Map</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- STEP INDICATOR -->
+<div class="steps" id="stepBar">
+  <div class="step active" id="step1"><div class="step-num">1</div> Choose City</div>
+  <div class="step-arrow">›</div>
+  <div class="step" id="step2"><div class="step-num">2</div> Select Areas</div>
+  <div class="step-arrow">›</div>
+  <div class="step" id="step3"><div class="step-num">3</div> View Map & Distances</div>
+</div>
+
+<!-- ══ SCREEN 1: CITY ══════════════════════════════════════════════════════ -->
+<div class="screen active" id="screen1">
+  <div class="screen-title">Choose a <span>City</span></div>
+  <div class="screen-sub">STEP 1 OF 3 — PICK THE CITY YOU WANT TO EXPLORE</div>
+
+  <div class="city-grid" id="cityGrid"></div>
+</div>
+
+<!-- ══ SCREEN 2: AREAS ════════════════════════════════════════════════════ -->
+<div class="screen" id="screen2">
+  <button class="back-btn" onclick="goStep(1)">← Back to Cities</button>
+  <div class="screen-title" id="s2Title">Select <span>Areas</span></div>
+  <div class="screen-sub" id="s2Sub">STEP 2 OF 3 — PICK 2 TO 8 AREAS / LOCALITIES</div>
+
+  <div class="area-grid" id="areaGrid"></div>
+
+  <div class="area-actions">
+    <button class="btn-primary" id="proceedBtn" onclick="goStep(3)" disabled>View Distance Map →</button>
+    <button class="btn-secondary" onclick="selectAllAreas()">Select All</button>
+    <button class="btn-secondary" onclick="clearAreas()">Clear</button>
+    <span class="sel-count" id="selCount">0 selected</span>
+  </div>
+</div>
+
+<!-- ══ SCREEN 3: MAP ═══════════════════════════════════════════════════════ -->
+<div class="screen" id="screen3">
+  <div class="map-header">
+    <div>
+      <div class="map-header-city" id="mhCity"></div>
+      <div class="map-header-sub" id="mhSub"></div>
+    </div>
+    <button class="back-btn" onclick="goStep(2)">← Change Areas</button>
+  </div>
+
+  <div class="info-panel">
+    <div>
+      <div class="panel-label">📍 Areas</div>
+      <div id="areaListEl"></div>
+    </div>
+    <div>
+      <div class="panel-label">🛣️ Route</div>
+      <div id="routeCard"><div style="color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;">Click two areas to compare</div></div>
+    </div>
+  </div>
+
+  <div class="map-svg-wrap">
+    <svg id="mapSvg"></svg>
+  </div>
+
+  <div class="matrix-bar" id="matrixBar">
+    <div class="matrix-toggle" onclick="toggleMatrix()">
+      <span>▲</span> <span id="matToggleLbl">DISTANCE MATRIX (km) — CLICK TO COLLAPSE</span>
+    </div>
+    <div id="matrixContent"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); }
+  .wrap { padding: 1.5rem 0; }
+  .header { margin-bottom: 1.5rem; }
+  .header h2 { font-size: 18px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 4px; }
+  .header p { font-size: 13px; color: var(--color-text-secondary); }
+  .paste-area { border: 1.5px dashed var(--color-border-secondary); border-radius: var(--border-radius-lg); padding: 1rem; background: var(--color-background-secondary); margin-bottom: 1rem; }
+  .paste-area textarea { width: 100%; min-height: 90px; background: transparent; border: none; outline: none; resize: vertical; font-family: var(--font-mono); font-size: 13px; color: var(--color-text-primary); }
+  .paste-area textarea::placeholder { color: var(--color-text-tertiary); }
+  .controls { display: flex; gap: 8px; margin-bottom: 1.5rem; align-items: center; }
+  .btn-parse { background: #25D366; color: #fff; border: none; border-radius: var(--border-radius-md); padding: 8px 20px; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .btn-parse:hover { background: #1ebe5a; }
+  .btn-clear { background: transparent; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 8px 16px; font-size: 14px; color: var(--color-text-secondary); cursor: pointer; }
+  .btn-clear:hover { background: var(--color-background-secondary); }
+  .hint { font-size: 12px; color: var(--color-text-tertiary); margin-left: auto; }
+  .results { display: flex; flex-direction: column; gap: 10px; }
+  .contact-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 14px 16px; display: flex; align-items: center; gap: 14px; }
+  .avatar { width: 42px; height: 42px; border-radius: 50%; background: #e1f5ee; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; color: #0f6e56; flex-shrink: 0; }
+  .info { flex: 1; min-width: 0; }
+  .name { font-size: 15px; font-weight: 500; color: var(--color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .number { font-size: 13px; color: var(--color-text-secondary); margin-top: 2px; font-family: var(--font-mono); }
+  .wa-btn { background: #25D366; color: #fff; border: none; border-radius: var(--border-radius-md); padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0; }
+  .wa-btn:hover { background: #1ebe5a; }
+  .wa-btn svg { width: 16px; height: 16px; fill: #fff; }
+  .empty { text-align: center; padding: 2rem; color: var(--color-text-tertiary); font-size: 14px; }
+  .count-badge { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: 999px; padding: 3px 10px; font-size: 12px; color: var(--color-text-secondary); }
+  .section-label { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+</style>
+
+<div class="wrap">
+  <h2 class="sr-only" style="position:absolute;left:-9999px">WhatsApp redirect tool — paste Excel names and numbers</h2>
+  <div class="header">
+    <h2><svg style="width:18px;height:18px;vertical-align:-3px;margin-right:6px;fill:#25D366" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>WhatsApp Redirect Tool</h2>
+    <p>Copy two columns from Excel (Name + Phone Number) and paste below</p>
+  </div>
+
+  <div class="paste-area">
+    <textarea id="pasteInput" placeholder="Paste from Excel here...&#10;&#10;Example:&#10;Ravi Kumar	9876543210&#10;Priya Sharma	+91 98765 43211&#10;Mohammed Ali	091-9876543212"></textarea>
+  </div>
+
+  <div class="controls">
+    <button class="btn-parse" onclick="parseData()">
+      <i class="ti ti-table-import" aria-hidden="true"></i> Parse & Generate Links
+    </button>
+    <button class="btn-clear" onclick="clearAll()">Clear</button>
+    <span class="hint" id="hint">Supports tabs, commas, or spaces between columns</span>
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<script>
+function getInitials(name) {
+  return name.trim().split(/\s+/).slice(0,2).map(w=>w[0]?.toUpperCase()||'').join('') || '?';
+}
+
+function cleanNumber(raw) {
+  let n = raw.replace(/[\s\-\(\)]/g, '');
+  if (n.startsWith('0')) n = '91' + n.slice(1);
+  if (n.startsWith('+')) n = n.slice(1);
+  if (/^\d{10}$/.test(n)) n = '91' + n;
+  return n;
+}
+
+function openWA(num) {
+  const url = 'https://wa.me/' + num;
+  window.open(url, '_blank');
+}
+
+function parseData() {
+  const raw = document.getElementById('pasteInput').value.trim();
+  if (!raw) { document.getElementById('results').innerHTML = '<p class="empty">Paste some data first!</p>'; return; }
+
+  const lines = raw.split('\n').filter(l => l.trim());
+  const contacts = [];
+
+  for (let line of lines) {
+    line = line.trim();
+    if (!line) continue;
+    let parts;
+    if (line.includes('\t')) parts = line.split('\t');
+    else if (line.includes(',')) parts = line.split(',');
+    else { const m = line.match(/^(.*?)(\+?\d[\d\s\-\(\)]{7,})$/); if (m) parts = [m[1], m[2]]; else parts = [line, '']; }
+
+    const name = (parts[0]||'').trim() || 'Unknown';
+    const rawNum = (parts[1]||'').trim();
+    const num = rawNum ? cleanNumber(rawNum) : null;
+    contacts.push({ name, rawNum, num });
+  }
+
+  const res = document.getElementById('results');
+  if (!contacts.length) { res.innerHTML = '<p class="empty">Could not parse any contacts. Check the format.</p>'; return; }
+
+  const avatarColors = ['#e1f5ee|#0f6e56','#e6f1fb|#185fa5','#faeeda|#854f0b','#fbeaf0|#993556','#eeedfe|#534ab7'];
+
+  let html = `<div class="section-label">Contacts <span class="count-badge">${contacts.length}</span></div><div class="results">`;
+  contacts.forEach((c, i) => {
+    const [bg, fg] = avatarColors[i % avatarColors.length].split('|');
+    const initials = getInitials(c.name);
+    const hasNum = c.num && /^\d{10,15}$/.test(c.num);
+    html += `<div class="contact-card">
+      <div class="avatar" style="background:${bg};color:${fg}">${initials}</div>
+      <div class="info">
+        <div class="name">${escHtml(c.name)}</div>
+        <div class="number">${escHtml(c.rawNum || 'No number')}</div>
+      </div>
+      ${hasNum ? `<button class="wa-btn" onclick="openWA('${c.num}')">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Open Chat
+      </button>` : `<span style="font-size:12px;color:var(--color-text-tertiary);padding:4px 8px;">No valid number</span>`}
+    </div>`;
+  });
+  html += '</div>';
+  res.innerHTML = html;
+}
+
+function clearAll() {
+  document.getElementById('pasteInput').value = '';
+  document.getElementById('results').innerHTML = '';
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>

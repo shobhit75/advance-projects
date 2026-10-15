@@ -1,0 +1,140 @@
+
+<h2 class="sr-only">Excel Code & Name Splitter — upload an Excel file to split combined code+name cells into two separate columns</h2>
+
+<div style="padding: 2rem 0 1rem;">
+  <p style="font-size: 13px; color: var(--color-text-secondary); margin: 0 0 1.5rem;">Upload an Excel file where each cell contains a numeric code followed by a name (e.g. <code>234434 PARIHAR FILL N FLY</code>). The tool splits them into two columns and gives you a clean file to download.</p>
+
+  <div id="drop-zone" style="border: 1.5px dashed var(--color-border-secondary); border-radius: var(--border-radius-lg); padding: 2.5rem 1.5rem; text-align: center; cursor: pointer; transition: background 0.15s;" onclick="document.getElementById('file-input').click()">
+    <i class="ti ti-upload" style="font-size: 28px; color: var(--color-text-secondary); display: block; margin-bottom: 10px;" aria-hidden="true"></i>
+    <p style="font-size: 15px; font-weight: 500; margin: 0 0 4px;">Drop your Excel file here</p>
+    <p style="font-size: 13px; color: var(--color-text-secondary); margin: 0;">or click to browse — .xlsx files only</p>
+    <input type="file" id="file-input" accept=".xlsx" style="display:none">
+  </div>
+
+  <div id="status" style="display:none; margin-top: 1.25rem; padding: 12px 16px; border-radius: var(--border-radius-md); font-size: 14px;"></div>
+
+  <div id="preview-section" style="display:none; margin-top: 1.5rem;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+      <span style="font-size: 13px; font-weight: 500; color: var(--color-text-secondary);" id="row-count"></span>
+      <button id="download-btn" onclick="downloadFile()" style="font-size: 13px; padding: 6px 14px; display: flex; align-items: center; gap: 6px;">
+        <i class="ti ti-download" style="font-size: 15px;" aria-hidden="true"></i> Download Excel
+      </button>
+    </div>
+
+    <div style="border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden;">
+      <table id="preview-table" style="width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed;">
+        <thead>
+          <tr style="background: var(--color-background-secondary);">
+            <th style="padding: 10px 14px; text-align: left; font-weight: 500; border-bottom: 0.5px solid var(--color-border-tertiary); width: 30%;">Code</th>
+            <th style="padding: 10px 14px; text-align: left; font-weight: 500; border-bottom: 0.5px solid var(--color-border-tertiary);">Name</th>
+          </tr>
+        </thead>
+        <tbody id="preview-body"></tbody>
+      </table>
+    </div>
+    <p style="font-size: 12px; color: var(--color-text-tertiary); margin: 8px 0 0;">Showing first 10 rows — the downloaded file contains all rows.</p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+let parsedRows = [];
+let outputWorkbook = null;
+
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const status = document.getElementById('status');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.background = 'var(--color-background-secondary)'; });
+dropZone.addEventListener('dragleave', () => { dropZone.style.background = ''; });
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.style.background = '';
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) processFile(e.target.files[0]); });
+
+function showStatus(msg, type) {
+  status.style.display = 'block';
+  status.textContent = msg;
+  const colors = {
+    info: { bg: 'var(--color-background-info)', color: 'var(--color-text-info)' },
+    success: { bg: 'var(--color-background-success)', color: 'var(--color-text-success)' },
+    error: { bg: 'var(--color-background-danger)', color: 'var(--color-text-danger)' }
+  };
+  const c = colors[type] || colors.info;
+  status.style.background = c.bg;
+  status.style.color = c.color;
+}
+
+function processFile(file) {
+  if (!file.name.endsWith('.xlsx')) {
+    showStatus('Please upload a .xlsx file.', 'error');
+    return;
+  }
+  showStatus('Reading file…', 'info');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+      parsedRows = [];
+      for (const row of rows) {
+        const cell = String(row[0] || '').trim();
+        if (!cell || cell === 'undefined') continue;
+        const match = cell.match(/^(\d+)\s+(.+)$/);
+        if (match) {
+          parsedRows.push([match[1], match[2].trim()]);
+        } else if (cell) {
+          parsedRows.push([cell, '']);
+        }
+      }
+
+      if (parsedRows.length === 0) {
+        showStatus('No data found — make sure your file has code+name values in the first column.', 'error');
+        return;
+      }
+
+      buildOutputWorkbook();
+      renderPreview();
+      showStatus('✓ ' + parsedRows.length + ' rows processed successfully.', 'success');
+    } catch (err) {
+      showStatus('Could not read file: ' + err.message, 'error');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function buildOutputWorkbook() {
+  const wb = XLSX.utils.book_new();
+  const data = [['Code', 'Name'], ...parsedRows];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{ wch: 15 }, { wch: 45 }];
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  outputWorkbook = wb;
+}
+
+function renderPreview() {
+  const section = document.getElementById('preview-section');
+  const tbody = document.getElementById('preview-body');
+  const rowCount = document.getElementById('row-count');
+  section.style.display = 'block';
+  rowCount.textContent = parsedRows.length + ' rows ready';
+  tbody.innerHTML = '';
+  const preview = parsedRows.slice(0, 10);
+  preview.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    if (i % 2 === 1) tr.style.background = 'var(--color-background-secondary)';
+    tr.innerHTML = `<td style="padding:8px 14px; border-bottom:0.5px solid var(--color-border-tertiary); font-family: var(--font-mono); font-size:12px;">${row[0]}</td><td style="padding:8px 14px; border-bottom:0.5px solid var(--color-border-tertiary);">${row[1]}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function downloadFile() {
+  if (!outputWorkbook) return;
+  XLSX.writeFile(outputWorkbook, 'output_split.xlsx');
+}
+</script>

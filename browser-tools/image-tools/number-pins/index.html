@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Number Pins — pin numbers to any image</title>
+<style>
+  :root{
+    --bg:#161718;
+    --panel:#1f2123;
+    --panel-2:#26282b;
+    --border:#34363a;
+    --text:#eceae6;
+    --muted:#8d9096;
+    --accent:#ff5d3a;
+    --accent-2:#ffb199;
+    --mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    background:var(--bg);
+    color:var(--text);
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+  }
+
+  header{
+    padding:18px 24px;
+    border-bottom:1px solid var(--border);
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  header h1{
+    font-family:var(--mono);
+    font-size:16px;
+    font-weight:600;
+    letter-spacing:0.02em;
+    margin:0;
+    color:var(--text);
+  }
+  header h1 span{ color:var(--accent); }
+  header p{
+    margin:0;
+    font-size:13px;
+    color:var(--muted);
+  }
+
+  main{
+    flex:1;
+    display:flex;
+    gap:0;
+    min-height:0;
+  }
+
+  .stage-wrap{
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:28px;
+    overflow:auto;
+    position:relative;
+  }
+
+  .empty-state{
+    text-align:center;
+    color:var(--muted);
+    border:1.5px dashed var(--border);
+    border-radius:10px;
+    padding:64px 48px;
+    max-width:420px;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .empty-state:hover{
+    border-color:var(--accent);
+    background:rgba(255,93,58,0.04);
+  }
+  .empty-state .glyph{
+    font-family:var(--mono);
+    font-size:34px;
+    color:var(--accent);
+    margin-bottom:14px;
+    line-height:1;
+  }
+  .empty-state h2{
+    font-size:15px;
+    margin:0 0 6px;
+    color:var(--text);
+    font-weight:600;
+  }
+  .empty-state p{
+    font-size:13px;
+    margin:0;
+    color:var(--muted);
+  }
+
+  .stage{
+    position:relative;
+    display:inline-block;
+    line-height:0;
+    cursor:crosshair;
+    box-shadow:0 20px 60px rgba(0,0,0,0.45);
+    border-radius:4px;
+    overflow:visible;
+  }
+  .stage img{
+    display:block;
+    max-width:78vw;
+    max-height:74vh;
+    border-radius:4px;
+    user-select:none;
+    -webkit-user-drag:none;
+  }
+
+  .pin{
+    position:absolute;
+    transform:translate(-50%, -100%);
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:26px;
+    height:26px;
+    padding:0 7px;
+    background:var(--accent);
+    border:2px solid #1a1a1a;
+    border-radius:6px 6px 6px 2px;
+    cursor:grab;
+    box-shadow:0 3px 10px rgba(0,0,0,0.5);
+    transition:filter .1s ease;
+    white-space:nowrap;
+  }
+  .pin::after{
+    content:'';
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%);
+    bottom:-6px;
+    width:0;
+    height:0;
+    border-left:5px solid transparent;
+    border-right:5px solid transparent;
+    border-top:6px solid #1a1a1a;
+  }
+  .pin:hover{ filter:brightness(1.12); }
+  .pin.dragging{ cursor:grabbing; z-index:50; filter:brightness(1.2); }
+  .pin span{
+    font-family:var(--mono);
+    font-weight:700;
+    font-size:12px;
+    color:#181818;
+    white-space:nowrap;
+    pointer-events:none;
+  }
+  .pin-edit{
+    position:absolute;
+    transform:translate(-50%, -100%);
+    width:auto;
+    min-width:56px;
+    max-width:170px;
+    text-align:center;
+    font-family:var(--mono);
+    font-weight:700;
+    font-size:14px;
+    padding:5px 8px;
+    border-radius:6px;
+    border:2px solid var(--accent);
+    background:#1a1a1a;
+    color:var(--text);
+    outline:none;
+    z-index:60;
+  }
+  .pin .del{
+    position:absolute;
+    top:-11px;
+    right:-11px;
+    width:16px;
+    height:16px;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:50%;
+    color:var(--muted);
+    font-size:10px;
+    line-height:14px;
+    text-align:center;
+    cursor:pointer;
+    opacity:0;
+    transition:opacity .12s ease, color .12s ease, border-color .12s ease;
+  }
+  .pin:hover .del{ opacity:1; }
+  .pin .del:hover{ color:var(--accent); border-color:var(--accent); }
+
+  aside{
+    width:260px;
+    flex-shrink:0;
+    background:var(--panel);
+    border-left:1px solid var(--border);
+    display:flex;
+    flex-direction:column;
+    padding:20px;
+    gap:16px;
+    overflow-y:auto;
+  }
+
+  .btn{
+    font-family:var(--sans);
+    font-size:13px;
+    font-weight:600;
+    padding:10px 14px;
+    border-radius:6px;
+    border:1px solid var(--border);
+    background:var(--panel-2);
+    color:var(--text);
+    cursor:pointer;
+    transition:border-color .12s ease, background .12s ease;
+    text-align:left;
+  }
+  .btn:hover{ border-color:#4a4d52; background:#2c2e31; }
+  .btn.primary{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#1a1a1a;
+  }
+  .btn.primary:hover{ background:#ff6f4c; }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; }
+
+  .btn-row{ display:flex; flex-direction:column; gap:8px; }
+
+  .section-label{
+    font-family:var(--mono);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--muted);
+    margin:0 0 8px;
+  }
+
+  .pin-list{
+    list-style:none;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    flex:1;
+    overflow-y:auto;
+  }
+  .pin-list li{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    padding:7px 9px;
+    border-radius:5px;
+    background:var(--panel-2);
+    border:1px solid transparent;
+  }
+  .pin-list li:hover{ border-color:var(--border); }
+  .pin-list .num{
+    font-family:var(--mono);
+    font-weight:700;
+    color:var(--accent);
+    width:20px;
+    flex-shrink:0;
+  }
+  .pin-list .coords{
+    color:var(--muted);
+    font-family:var(--mono);
+    font-size:11px;
+    flex:1;
+  }
+  .pin-list button{
+    background:none;
+    border:none;
+    color:var(--muted);
+    cursor:pointer;
+    font-size:14px;
+    padding:2px 4px;
+  }
+  .pin-list button:hover{ color:var(--accent); }
+
+  .empty-list{
+    color:var(--muted);
+    font-size:12px;
+    font-style:italic;
+  }
+
+  .hint{
+    font-size:12px;
+    color:var(--muted);
+    line-height:1.5;
+  }
+
+  input[type=file]{ display:none; }
+
+  footer{
+    padding:10px 24px;
+    border-top:1px solid var(--border);
+    font-size:11px;
+    color:var(--muted);
+    font-family:var(--mono);
+  }
+
+  @media (max-width:720px){
+    main{ flex-direction:column; }
+    aside{ width:100%; border-left:none; border-top:1px solid var(--border); }
+    .stage img{ max-width:88vw; max-height:50vh; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Number<span>Pins</span></h1>
+  <p>Upload a picture, click anywhere to drop a pin, then type the number you want.</p>
+</header>
+
+<main>
+  <div class="stage-wrap" id="stageWrap">
+    <div class="empty-state" id="emptyState">
+      <div class="glyph">＋</div>
+      <h2>Add a picture</h2>
+      <p>Click here, or drag and drop an image file</p>
+    </div>
+  </div>
+
+  <aside>
+    <div class="btn-row">
+      <button class="btn primary" id="uploadBtn">Upload picture</button>
+      <button class="btn" id="downloadBtn" disabled>Download with numbers</button>
+      <button class="btn" id="clearPinsBtn" disabled>Clear all pins</button>
+      <button class="btn" id="newImageBtn" disabled>Replace picture</button>
+    </div>
+
+    <div>
+      <p class="section-label">Pins</p>
+      <ul class="pin-list" id="pinList">
+        <li class="empty-list">No pins yet — click the image to add one.</li>
+      </ul>
+    </div>
+
+    <p class="hint">Type one number for a plain label. Type <b>3 numbers separated by commas</b> (e.g. 3,4,5) to auto-calculate triangle area with Heron's formula. Type <b>2 numbers separated by a comma</b> (e.g. 4,5) to auto-calculate rectangle area. Double-click a pin to edit — it reopens with your original numbers so you can adjust them.</p>
+  </aside>
+</main>
+
+<footer>click to pin · type your number · double-click to edit · drag to move</footer>
+
+<input type="file" id="fileInput" accept="image/*">
+
+<script>
+(function(){
+  const stageWrap = document.getElementById('stageWrap');
+  const emptyState = document.getElementById('emptyState');
+  const fileInput = document.getElementById('fileInput');
+  const uploadBtn = document.getElementById('uploadBtn');
+  const newImageBtn = document.getElementById('newImageBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const clearPinsBtn = document.getElementById('clearPinsBtn');
+  const pinListEl = document.getElementById('pinList');
+
+  let stage = null;
+  let img = null;
+  let pins = []; // {id, xPct, yPct, value}
+  let nextId = 1;
+  let dragging = null;
+  let activeEdit = null; // {input, pinId, isNew}
+
+  function openFileDialog(){ fileInput.click(); }
+  uploadBtn.addEventListener('click', openFileDialog);
+  newImageBtn.addEventListener('click', openFileDialog);
+  emptyState.addEventListener('click', openFileDialog);
+
+  emptyState.addEventListener('dragover', e => { e.preventDefault(); emptyState.style.borderColor = 'var(--accent)'; });
+  emptyState.addEventListener('dragleave', () => { emptyState.style.borderColor = ''; });
+  emptyState.addEventListener('drop', e => {
+    e.preventDefault();
+    emptyState.style.borderColor = '';
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) loadImageFile(e.dataTransfer.files[0]);
+  });
+
+  fileInput.addEventListener('change', e => {
+    if (e.target.files && e.target.files[0]) loadImageFile(e.target.files[0]);
+    fileInput.value = '';
+  });
+
+  function loadImageFile(file){
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = ev => buildStage(ev.target.result);
+    reader.readAsDataURL(file);
+  }
+
+  function buildStage(src){
+    pins = [];
+    nextId = 1;
+    stageWrap.innerHTML = '';
+    stage = document.createElement('div');
+    stage.className = 'stage';
+    img = document.createElement('img');
+    img.src = src;
+    img.draggable = false;
+    stage.appendChild(img);
+    stageWrap.appendChild(stage);
+
+    stage.addEventListener('click', onStageClick);
+
+    newImageBtn.disabled = false;
+    downloadBtn.disabled = false;
+    clearPinsBtn.disabled = false;
+    renderPinList();
+  }
+
+  function formatNum(n){
+    if (!isFinite(n)) return 'Invalid';
+    // round to at most 2 decimal places, trimming unneeded trailing zeros
+    const rounded = Math.round(n * 100) / 100;
+    return String(rounded);
+  }
+
+  function computeDisplay(raw){
+    const parts = raw.split(',').map(s => s.trim()).filter(s => s.length > 0);
+
+    if (parts.length === 3){
+      const [a, b, c] = parts.map(Number);
+      if (parts.every(p => p !== '' && !isNaN(Number(p)))){
+        const s = (a + b + c) / 2;
+        const inside = s * (s - a) * (s - b) * (s - c);
+        if (inside <= 0) return 'Invalid';
+        return formatNum(Math.sqrt(inside));
+      }
+    }
+
+    if (parts.length === 2){
+      const [a, b] = parts.map(Number);
+      if (parts.every(p => p !== '' && !isNaN(Number(p)))){
+        return formatNum(a * b);
+      }
+    }
+
+    // single number, or anything that doesn't parse as 2 or 3 numbers — show as typed
+    return raw;
+  }
+
+  function onStageClick(e){
+    if (e.target.closest('.pin') || e.target.closest('.pin-edit')) return; // clicking a pin/editor shouldn't add a new one
+    if (activeEdit) commitEdit(); // finish whatever was being typed
+    const rect = stage.getBoundingClientRect();
+    const xPct = (e.clientX - rect.left) / rect.width;
+    const yPct = (e.clientY - rect.top) / rect.height;
+    addPin(xPct, yPct);
+  }
+
+  function addPin(xPct, yPct){
+    const pin = { id: nextId++, xPct, yPct, raw: '', value: '' };
+    pins.push(pin);
+    renderPins();
+    renderPinList();
+    openEditor(pin.id, true);
+  }
+
+  function removePin(id){
+    pins = pins.filter(p => p.id !== id);
+    renderPins();
+    renderPinList();
+  }
+
+  function renderPins(){
+    stage.querySelectorAll('.pin').forEach(p => p.remove());
+    pins.forEach((pin) => {
+      const el = document.createElement('div');
+      el.className = 'pin';
+      el.style.left = (pin.xPct * 100) + '%';
+      el.style.top = (pin.yPct * 100) + '%';
+      el.dataset.id = pin.id;
+
+      const label = document.createElement('span');
+      label.textContent = pin.value || '?';
+      el.appendChild(label);
+
+      const del = document.createElement('div');
+      del.className = 'del';
+      del.textContent = '×';
+      del.addEventListener('click', ev => {
+        ev.stopPropagation();
+        removePin(pin.id);
+      });
+      el.appendChild(del);
+
+      el.addEventListener('mousedown', ev => startDrag(ev, pin.id));
+      el.addEventListener('touchstart', ev => startDrag(ev, pin.id), {passive:false});
+      el.addEventListener('dblclick', ev => {
+        ev.stopPropagation();
+        openEditor(pin.id, false);
+      });
+
+      stage.appendChild(el);
+    });
+  }
+
+  function openEditor(pinId, isNew){
+    if (activeEdit) commitEdit();
+    const pin = pins.find(p => p.id === pinId);
+    if (!pin) return;
+
+    const input = document.createElement('input');
+    input.className = 'pin-edit';
+    input.type = 'text';
+    input.inputMode = 'decimal';
+    input.value = pin.raw;
+    input.style.left = (pin.xPct * 100) + '%';
+    input.style.top = (pin.yPct * 100) + '%';
+    input.maxLength = 24;
+
+    stage.appendChild(input);
+    input.focus();
+    input.select();
+
+    activeEdit = { input, pinId, isNew };
+
+    input.addEventListener('keydown', ev => {
+      if (ev.key === 'Enter'){ ev.preventDefault(); commitEdit(); }
+      else if (ev.key === 'Escape'){ ev.preventDefault(); cancelEdit(); }
+    });
+    input.addEventListener('blur', () => commitEdit());
+  }
+
+  function commitEdit(){
+    if (!activeEdit) return;
+    const { input, pinId, isNew } = activeEdit;
+    const value = input.value.trim();
+    input.remove();
+    activeEdit = null;
+
+    const pin = pins.find(p => p.id === pinId);
+    if (!pin) return;
+
+    if (!value && isNew){
+      // nothing typed for a brand-new pin — drop it rather than leave a blank
+      removePin(pinId);
+      return;
+    }
+    pin.raw = value;
+    pin.value = computeDisplay(value);
+    renderPins();
+    renderPinList();
+  }
+
+  function cancelEdit(){
+    if (!activeEdit) return;
+    const { input, pinId, isNew } = activeEdit;
+    input.remove();
+    activeEdit = null;
+    if (isNew){
+      removePin(pinId);
+    } else {
+      renderPins();
+    }
+  }
+
+  function startDrag(e, id){
+    e.preventDefault();
+    e.stopPropagation();
+    dragging = id;
+    const el = stage.querySelector(`.pin[data-id="${id}"]`);
+    if (el) el.classList.add('dragging');
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('touchmove', onDrag, {passive:false});
+    document.addEventListener('touchend', endDrag);
+  }
+
+  function onDrag(e){
+    if (dragging === null) return;
+    e.preventDefault();
+    const point = e.touches ? e.touches[0] : e;
+    const rect = stage.getBoundingClientRect();
+    let xPct = (point.clientX - rect.left) / rect.width;
+    let yPct = (point.clientY - rect.top) / rect.height;
+    xPct = Math.min(1, Math.max(0, xPct));
+    yPct = Math.min(1, Math.max(0, yPct));
+    const pin = pins.find(p => p.id === dragging);
+    if (pin){
+      pin.xPct = xPct;
+      pin.yPct = yPct;
+      const el = stage.querySelector(`.pin[data-id="${dragging}"]`);
+      if (el){
+        el.style.left = (xPct * 100) + '%';
+        el.style.top = (yPct * 100) + '%';
+      }
+      updateCoordsInList(dragging, xPct, yPct);
+    }
+  }
+
+  function endDrag(){
+    if (dragging !== null){
+      const el = stage.querySelector(`.pin[data-id="${dragging}"]`);
+      if (el) el.classList.remove('dragging');
+    }
+    dragging = null;
+    document.removeEventListener('mousemove', onDrag);
+    document.removeEventListener('mouseup', endDrag);
+    document.removeEventListener('touchmove', onDrag);
+    document.removeEventListener('touchend', endDrag);
+  }
+
+  function renderPinList(){
+    pinListEl.innerHTML = '';
+    if (pins.length === 0){
+      const li = document.createElement('li');
+      li.className = 'empty-list';
+      li.textContent = 'No pins yet — click the image to add one.';
+      pinListEl.appendChild(li);
+      return;
+    }
+    pins.forEach((pin) => {
+      const li = document.createElement('li');
+      li.dataset.id = pin.id;
+      li.innerHTML = `
+        <span class="num">${pin.value || '?'}</span>
+        <span class="coords">${(pin.xPct*100).toFixed(0)}%, ${(pin.yPct*100).toFixed(0)}%</span>
+        <button title="Remove">×</button>
+      `;
+      li.querySelector('button').addEventListener('click', () => removePin(pin.id));
+      li.addEventListener('dblclick', () => openEditor(pin.id, false));
+      pinListEl.appendChild(li);
+    });
+  }
+
+  function updateCoordsInList(id, xPct, yPct){
+    const li = pinListEl.querySelector(`li[data-id="${id}"]`);
+    if (li){
+      const c = li.querySelector('.coords');
+      if (c) c.textContent = `${(xPct*100).toFixed(0)}%, ${(yPct*100).toFixed(0)}%`;
+    }
+  }
+
+  clearPinsBtn.addEventListener('click', () => {
+    pins = [];
+    renderPins();
+    renderPinList();
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    if (!img || !img.naturalWidth) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    const scale = canvas.width / stage.getBoundingClientRect().width;
+    const fontSize = 15 * scale;
+    const padX = 8 * scale;
+    const tagHeight = 27 * scale;
+    const tailH = 6 * scale;
+    const tailW = 5 * scale;
+    const radius = 6 * scale;
+
+    pins.forEach((pin) => {
+      const anchorX = pin.xPct * canvas.width;   // point the tail touches
+      const anchorY = pin.yPct * canvas.height;
+      const text = pin.value || '?';
+
+      ctx.font = `700 ${fontSize}px "JetBrains Mono", monospace`;
+      const textWidth = ctx.measureText(text).width;
+      const tagWidth = Math.max(26 * scale, textWidth + padX * 2);
+
+      // box sits above the anchor point, centered horizontally on it
+      const boxLeft = anchorX - tagWidth / 2;
+      const boxTop = anchorY - tagHeight - tailH;
+
+      ctx.save();
+      ctx.fillStyle = '#ff5d3a';
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth = Math.max(2, 2 * scale);
+
+      // rounded rect (sharp bottom-left corner, like the on-screen tag)
+      ctx.beginPath();
+      ctx.moveTo(boxLeft + radius, boxTop);
+      ctx.lineTo(boxLeft + tagWidth - radius, boxTop);
+      ctx.arcTo(boxLeft + tagWidth, boxTop, boxLeft + tagWidth, boxTop + radius, radius);
+      ctx.lineTo(boxLeft + tagWidth, boxTop + tagHeight - radius);
+      ctx.arcTo(boxLeft + tagWidth, boxTop + tagHeight, boxLeft + tagWidth - radius, boxTop + tagHeight, radius);
+      ctx.lineTo(boxLeft + radius, boxTop + tagHeight);
+      ctx.arcTo(boxLeft, boxTop + tagHeight, boxLeft, boxTop + tagHeight - radius, radius);
+      ctx.lineTo(boxLeft, boxTop + radius);
+      ctx.arcTo(boxLeft, boxTop, boxLeft + radius, boxTop, radius);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // pointer tail beneath the box, touching the anchor point
+      ctx.beginPath();
+      ctx.moveTo(anchorX - tailW, boxTop + tagHeight);
+      ctx.lineTo(anchorX + tailW, boxTop + tagHeight);
+      ctx.lineTo(anchorX, boxTop + tagHeight + tailH);
+      ctx.closePath();
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fill();
+
+      // label text, vertically centered in the box
+      ctx.fillStyle = '#181818';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, boxLeft + tagWidth / 2, boxTop + tagHeight / 2 + fontSize * 0.05);
+      ctx.restore();
+    });
+
+    const link = document.createElement('a');
+    link.download = 'numbered-image.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+})();
+</script>
+
+</body>
+</html>

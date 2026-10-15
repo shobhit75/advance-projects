@@ -1,0 +1,161 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+#app{padding:2rem 1.5rem;min-height:400px;font-family:'Syne',sans-serif}
+h2.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.header{margin-bottom:2rem}
+.header h1{font-size:22px;font-weight:700;color:var(--color-text-primary);letter-spacing:-0.5px}
+.header p{font-size:14px;color:var(--color-text-secondary);margin-top:4px}
+#drop-zone{border:1.5px dashed var(--color-border-secondary);border-radius:var(--border-radius-lg);padding:2.5rem 1.5rem;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--color-background-secondary)}
+#drop-zone.dragover{border-color:#185FA5;background:var(--color-background-info)}
+#drop-zone i{font-size:36px;color:var(--color-text-secondary);margin-bottom:12px;display:block}
+#drop-zone .dz-title{font-size:15px;font-weight:600;color:var(--color-text-primary);margin-bottom:6px}
+#drop-zone .dz-sub{font-size:13px;color:var(--color-text-secondary)}
+#drop-zone .dz-sub span{color:var(--color-text-info);text-decoration:underline;cursor:pointer}
+#file-input{display:none}
+#results{margin-top:1.5rem;display:none}
+.result-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.result-title{font-size:14px;font-weight:600;color:var(--color-text-primary)}
+.badge{font-size:12px;padding:3px 10px;border-radius:20px;background:var(--color-background-info);color:var(--color-text-info);font-family:'JetBrains Mono',monospace}
+#name-list{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:1rem;max-height:260px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--color-text-primary);white-space:pre-wrap;line-height:1.8;word-break:break-all}
+.actions{display:flex;gap:10px;margin-top:1rem;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-primary);font-size:13px;font-family:'Syne',sans-serif;font-weight:600;cursor:pointer;transition:all 0.15s}
+.btn:hover{background:var(--color-background-secondary)}
+.btn:active{transform:scale(0.98)}
+.btn-primary{background:var(--color-background-info);color:var(--color-text-info);border-color:transparent}
+.btn-primary:hover{opacity:0.85;background:var(--color-background-info)}
+.error{margin-top:1rem;padding:10px 14px;border-radius:var(--border-radius-md);background:var(--color-background-danger);color:var(--color-text-danger);font-size:13px;display:none}
+.filter-row{display:flex;gap:8px;margin-bottom:10px;align-items:center}
+.filter-row input[type=text]{flex:1;font-size:13px;font-family:'JetBrains Mono',monospace;padding:6px 10px}
+.source-label{font-size:13px;color:var(--color-text-secondary);margin-bottom:8px;font-family:'JetBrains Mono',monospace}
+</style>
+
+<div id="app">
+  <h2 class="sr-only">PDF filename extractor — select multiple PDF files and get a plain text list of their names without extensions, in selection order</h2>
+  <div class="header">
+    <h1><i class="ti ti-file-type-pdf" aria-hidden="true" style="font-size:20px;vertical-align:-2px;margin-right:8px"></i>PDF Name Extractor</h1>
+    <p>Select multiple PDF files and get a plain text list of their names (no .pdf extension)</p>
+  </div>
+
+  <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+    <i class="ti ti-files" aria-hidden="true"></i>
+    <div class="dz-title">Drop PDF files here</div>
+    <div class="dz-sub">or <span>click to select files</span> &nbsp;·&nbsp; select all with Ctrl+A / Cmd+A</div>
+  </div>
+  <input type="file" id="file-input" accept=".pdf" multiple>
+
+  <div class="error" id="error-box"></div>
+
+  <div id="results">
+    <p class="source-label" id="source-label"></p>
+    <div class="filter-row">
+      <input type="text" id="filter-input" placeholder="Filter names…" oninput="applyFilter()">
+    </div>
+    <div class="result-header">
+      <span class="result-title">File names</span>
+      <span class="badge" id="count-badge">0 files</span>
+    </div>
+    <div id="name-list"></div>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="downloadTxt()"><i class="ti ti-download" aria-hidden="true"></i>Download .txt</button>
+      <button class="btn" id="copy-btn" onclick="copyAll()"><i class="ti ti-copy" aria-hidden="true"></i>Copy all</button>
+      <button class="btn" onclick="resetUI()"><i class="ti ti-refresh" aria-hidden="true"></i>New selection</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let allNames = [];
+
+const dz = document.getElementById('drop-zone');
+const fi = document.getElementById('file-input');
+const results = document.getElementById('results');
+const nameList = document.getElementById('name-list');
+const countBadge = document.getElementById('count-badge');
+const errorBox = document.getElementById('error-box');
+
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('dragover');
+  handleFiles(Array.from(e.dataTransfer.files));
+});
+fi.addEventListener('change', () => handleFiles(Array.from(fi.files)));
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.style.display = 'block';
+}
+
+function stripExt(filename) {
+  return filename.replace(/\.pdf$/i, '');
+}
+
+function handleFiles(files) {
+  errorBox.style.display = 'none';
+  if (!files || files.length === 0) return;
+
+  const pdfs = files.filter(f => f.name.toLowerCase().endsWith('.pdf'));
+  const skipped = files.length - pdfs.length;
+
+  if (pdfs.length === 0) {
+    showError('No PDF files found in your selection. Please select .pdf files.');
+    return;
+  }
+
+  // preserve selection order — no sort
+  allNames = pdfs.map(f => stripExt(f.name));
+
+  const label = pdfs.length + ' PDF' + (pdfs.length === 1 ? '' : 's') + ' selected' +
+    (skipped > 0 ? ' (' + skipped + ' non-PDF skipped)' : '');
+  document.getElementById('source-label').textContent = '📄 ' + label;
+
+  document.getElementById('filter-input').value = '';
+  renderList(allNames);
+  results.style.display = 'block';
+}
+
+function applyFilter() {
+  const q = document.getElementById('filter-input').value.toLowerCase();
+  const filtered = q ? allNames.filter(n => n.toLowerCase().includes(q)) : allNames;
+  renderList(filtered);
+}
+
+function renderList(names) {
+  nameList.textContent = names.join('\n');
+  countBadge.textContent = names.length + (names.length === 1 ? ' file' : ' files');
+}
+
+function getVisible() {
+  const q = document.getElementById('filter-input').value.toLowerCase();
+  return q ? allNames.filter(n => n.toLowerCase().includes(q)) : allNames;
+}
+
+function downloadTxt() {
+  const names = getVisible();
+  const blob = new Blob([names.join('\n')], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'pdf-names.txt';
+  a.click();
+}
+
+function copyAll() {
+  const names = getVisible();
+  navigator.clipboard.writeText(names.join('\n')).then(() => {
+    const btn = document.getElementById('copy-btn');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<i class="ti ti-check" aria-hidden="true"></i>Copied!';
+    setTimeout(() => btn.innerHTML = orig, 1500);
+  });
+}
+
+function resetUI() {
+  results.style.display = 'none';
+  errorBox.style.display = 'none';
+  fi.value = '';
+  allNames = [];
+}
+</script>

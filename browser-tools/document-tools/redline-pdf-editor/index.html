@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Redline — PDF Text Editor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<style>
+  :root{
+    --paper: #f1ece0;
+    --paper-panel: #faf7ef;
+    --ink: #211f1c;
+    --ink-soft: #6b6558;
+    --rule: #d8d0bd;
+    --pencil: #b3402a;
+    --pencil-dark: #8f3120;
+    --slate: #48586b;
+    --slate-dark: #384556;
+    --paper-shadow: rgba(33,31,28,0.16);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--paper);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(33,31,28,0.05) 1px, transparent 0);
+    background-size: 22px 22px;
+    color: var(--ink);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+  }
+
+  /* ---------- header ---------- */
+  header{
+    padding: 22px 28px 16px;
+    border-bottom: 2px solid var(--ink);
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+  }
+  .brand h1{
+    font-family:'Special Elite',monospace;
+    font-size:26px;
+    margin:0;
+    letter-spacing:0.5px;
+    position:relative;
+  }
+  .brand h1::after{
+    content:"";
+    position:absolute;
+    left:-2px; right:-4px; bottom:-6px;
+    height:3px;
+    background: var(--pencil);
+    transform: rotate(-0.6deg);
+    border-radius:2px;
+  }
+  .brand .tag{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:1.5px;
+  }
+  .pagecount{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+
+  /* ---------- layout ---------- */
+  .app{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding: 26px 16px 60px;
+  }
+
+  /* ---------- upload state ---------- */
+  .dropzone{
+    width:100%;
+    max-width:640px;
+    margin-top:40px;
+    border:2px dashed var(--rule);
+    border-radius:4px;
+    background: var(--paper-panel);
+    padding:60px 30px;
+    text-align:center;
+    cursor:pointer;
+    transition: border-color .15s ease, background .15s ease;
+    position:relative;
+  }
+  .dropzone:hover, .dropzone.drag{
+    border-color: var(--pencil);
+    background: #fdfaf3;
+  }
+  .dropzone .mark{
+    font-family:'Special Elite',monospace;
+    font-size:42px;
+    color: var(--pencil);
+    display:inline-block;
+    transform: rotate(-8deg);
+    margin-bottom:8px;
+  }
+  .dropzone h2{
+    font-family:'Special Elite',monospace;
+    font-size:19px;
+    margin:6px 0 8px;
+    font-weight:400;
+  }
+  .dropzone p{
+    color:var(--ink-soft);
+    font-size:14px;
+    margin:0;
+  }
+  .dropzone input{display:none;}
+
+  /* ---------- toolbar ---------- */
+  .toolbar{
+    display:none;
+    width:100%;
+    max-width:920px;
+    background: var(--paper-panel);
+    border:1px solid var(--rule);
+    border-radius:6px;
+    padding:12px 14px;
+    margin-bottom:18px;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+    box-shadow: 0 2px 0 var(--rule);
+  }
+  .toolbar.show{display:flex;}
+  .tool-group{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    padding:0 10px;
+    border-right:1px solid var(--rule);
+  }
+  .tool-group:last-child{border-right:none;}
+  button.tool{
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    font-weight:600;
+    padding:8px 13px;
+    border-radius:4px;
+    border:1px solid transparent;
+    background:transparent;
+    color:var(--ink);
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    transition: background .12s ease, border-color .12s ease;
+  }
+  button.tool:hover{ background:#efe9d9; }
+  button.tool.active{
+    background: var(--pencil);
+    color:#fff8f0;
+    border-color: var(--pencil-dark);
+  }
+  button.tool.slate.active{
+    background: var(--slate);
+    border-color: var(--slate-dark);
+  }
+  button.tool svg{width:15px;height:15px;flex:none;}
+  button.iconbtn{
+    width:32px;height:32px;
+    border-radius:4px;
+    border:1px solid var(--rule);
+    background:#fff;
+    color:var(--ink);
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  button.iconbtn:hover{border-color:var(--ink-soft);}
+  button.iconbtn:disabled{opacity:.35;cursor:not-allowed;}
+  select, input[type=color], input[type=range]{
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    border:1px solid var(--rule);
+    border-radius:4px;
+    background:#fff;
+    padding:6px 8px;
+  }
+  input[type=color]{padding:2px;width:34px;height:30px;cursor:pointer;}
+  .sizeval{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-soft);width:26px;text-align:center;}
+
+  .primary-btn{
+    font-family:'Inter',sans-serif;
+    font-weight:700;
+    font-size:13px;
+    padding:9px 18px;
+    border-radius:4px;
+    border:1px solid var(--pencil-dark);
+    background: var(--pencil);
+    color:#fff8f0;
+    cursor:pointer;
+    margin-left:auto;
+  }
+  .primary-btn:hover{background:var(--pencil-dark);}
+
+  .pagenav{
+    display:flex;align-items:center;gap:8px;
+  }
+  .pagenav span{font-family:'JetBrains Mono',monospace;font-size:12px;}
+
+  /* ---------- canvas stage ---------- */
+  .stage-wrap{
+    position:relative;
+    display:none;
+  }
+  .stage-wrap.show{display:block;}
+  .page-shell{
+    background:#fff;
+    box-shadow: 0 8px 28px var(--paper-shadow), 0 1px 0 rgba(0,0,0,0.08);
+    position:relative;
+  }
+  #pdf-canvas{ display:block; }
+  #overlay{
+    position:absolute; top:0; left:0;
+    cursor: text;
+  }
+  #overlay.whiteout-mode{ cursor: crosshair; }
+  #overlay.select-mode{ cursor: default; }
+
+  .textbox{
+    position:absolute;
+    min-width:20px;
+    padding:1px 2px;
+    outline:none;
+    white-space:pre-wrap;
+    line-height:1.15;
+    font-family:'Helvetica',Arial,sans-serif;
+    cursor:move;
+    border:1px solid transparent;
+  }
+  .textbox:hover{ border-color: rgba(72,88,107,0.4); }
+  .textbox.editing{
+    border:1px solid var(--slate);
+    background: rgba(72,88,107,0.06);
+    cursor:text;
+  }
+  .textbox .drag-handle{
+    position:absolute;
+    top:-9px; left:-9px;
+    width:9px;height:9px;
+    background:var(--slate);
+    border-radius:50%;
+    cursor:move;
+    display:none;
+  }
+  .textbox:hover .drag-handle{ display:block; }
+  .textbox .del-handle{
+    position:absolute;
+    top:-9px; right:-9px;
+    width:15px;height:15px;
+    background:var(--pencil);
+    border-radius:50%;
+    display:none;
+    align-items:center;justify-content:center;
+    color:#fff; font-size:11px; line-height:1;
+    cursor:pointer;
+  }
+  .textbox:hover .del-handle{ display:flex; }
+
+  .whitebox{
+    position:absolute;
+    background:#ffffff;
+    border:1px solid rgba(72,88,107,0.35);
+  }
+  .whitebox .del-handle{
+    position:absolute;
+    top:-9px; right:-9px;
+    width:15px;height:15px;
+    background:var(--pencil);
+    border-radius:50%;
+    display:none;
+    align-items:center;justify-content:center;
+    color:#fff; font-size:11px; line-height:1;
+    cursor:pointer;
+  }
+  .whitebox:hover .del-handle{ display:flex; }
+  .whitebox .resize-handle{
+    position:absolute;
+    width:10px;height:10px;
+    right:-5px;bottom:-5px;
+    background:var(--slate);
+    cursor:nwse-resize;
+    display:none;
+  }
+  .whitebox:hover .resize-handle{ display:block; }
+
+  .hint{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin-top:14px;
+    text-align:center;
+    max-width:600px;
+  }
+  .hint b{color:var(--ink);}
+
+  .toast{
+    position:fixed;
+    bottom:26px; left:50%;
+    transform:translateX(-50%) translateY(20px);
+    background:var(--ink);
+    color:#faf7ef;
+    padding:10px 18px;
+    border-radius:5px;
+    font-size:13px;
+    font-family:'Inter',sans-serif;
+    opacity:0;
+    transition: opacity .2s ease, transform .2s ease;
+    pointer-events:none;
+    z-index:50;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .spinner-overlay{
+    position:fixed; inset:0;
+    background:rgba(241,236,224,0.85);
+    display:none;
+    align-items:center; justify-content:center;
+    flex-direction:column;
+    gap:12px;
+    z-index:100;
+  }
+  .spinner-overlay.show{display:flex;}
+  .spinner{
+    width:34px;height:34px;
+    border:3px solid var(--rule);
+    border-top-color: var(--pencil);
+    border-radius:50%;
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .spinner-overlay p{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-soft);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>Redline</h1>
+    <span class="tag">pdf text editor</span>
+  </div>
+  <div class="pagecount" id="filename-label"></div>
+</header>
+
+<div class="app">
+
+  <div class="dropzone" id="dropzone">
+    <div class="mark">✎</div>
+    <h2>Drop a PDF here, or click to choose one</h2>
+    <p>Cover existing text and type new text, right in your browser. Nothing leaves your machine.</p>
+    <input type="file" id="file-input" accept="application/pdf">
+  </div>
+
+  <div class="toolbar" id="toolbar">
+    <div class="tool-group">
+      <button class="tool active" id="tool-select" title="Select / move">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l7 17 2-7 7-2z"/></svg>
+        Select
+      </button>
+      <button class="tool" id="tool-text" title="Add text">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h7"/></svg>
+        Add text
+      </button>
+      <button class="tool slate" id="tool-whiteout" title="White-out (cover existing text)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1"/></svg>
+        White-out
+      </button>
+    </div>
+
+    <div class="tool-group">
+      <input type="color" id="text-color" value="#211f1c" title="Text color">
+      <input type="range" id="text-size" min="8" max="60" value="14">
+      <span class="sizeval" id="text-size-val">14</span>
+    </div>
+
+    <div class="tool-group pagenav">
+      <button class="iconbtn" id="prev-page" title="Previous page">‹</button>
+      <span id="page-indicator">1 / 1</span>
+      <button class="iconbtn" id="next-page" title="Next page">›</button>
+    </div>
+
+    <div class="tool-group">
+      <button class="iconbtn" id="new-file" title="Load a different PDF">⟲</button>
+    </div>
+
+    <button class="primary-btn" id="download-btn">Download PDF</button>
+  </div>
+
+  <div class="stage-wrap" id="stage-wrap">
+    <div class="page-shell">
+      <canvas id="pdf-canvas"></canvas>
+      <div id="overlay" class="select-mode"></div>
+    </div>
+    <p class="hint">
+      <b>Add text:</b> click the page to drop a text box, type, then click elsewhere. &nbsp;
+      <b>White-out:</b> drag a box over text you want to remove, then switch to Add text to type over it. &nbsp;
+      <b>Select:</b> drag boxes to reposition, hover to delete.
+    </p>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="spinner-overlay" id="spinner"><div class="spinner"></div><p id="spinner-msg">Loading…</p></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('file-input');
+const toolbar = document.getElementById('toolbar');
+const stageWrap = document.getElementById('stage-wrap');
+const canvas = document.getElementById('pdf-canvas');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const pageIndicator = document.getElementById('page-indicator');
+const filenameLabel = document.getElementById('filename-label');
+const spinner = document.getElementById('spinner');
+const spinnerMsg = document.getElementById('spinner-msg');
+const toast = document.getElementById('toast');
+
+let pdfDoc = null;          // pdf.js document (for rendering)
+let originalBytes = null;   // raw file bytes (for pdf-lib export)
+let currentPage = 1;
+let numPages = 1;
+let renderScale = 1.6;
+let pageViewportUnscaled = null; // {width,height} at scale 1, per current page
+
+let mode = 'select'; // select | text | whiteout
+let textColor = '#211f1c';
+let textSize = 14;
+
+// edits[pageIndex] = { texts: [{id,x,y,width,text,size,color}], whites: [{id,x,y,width,height}] }
+// all coordinates stored in SCREEN space at renderScale, top-left origin, per page
+let edits = {};
+let idCounter = 1;
+
+function showToast(msg){
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'), 2200);
+}
+function showSpinner(msg){
+  spinnerMsg.textContent = msg || 'Working…';
+  spinner.classList.add('show');
+}
+function hideSpinner(){ spinner.classList.remove('show'); }
+
+// ---------- file loading ----------
+dropzone.addEventListener('click', ()=> fileInput.click());
+dropzone.addEventListener('dragover', e=>{ e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', ()=> dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e=>{
+  e.preventDefault();
+  dropzone.classList.remove('drag');
+  if(e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e=>{
+  if(e.target.files.length) loadFile(e.target.files[0]);
+});
+
+async function loadFile(file){
+  if(file.type !== 'application/pdf'){
+    showToast('Please choose a PDF file.');
+    return;
+  }
+  showSpinner('Opening PDF…');
+  try{
+    const buf = await file.arrayBuffer();
+    originalBytes = buf.slice(0); // keep a pristine copy
+    pdfDoc = await pdfjsLib.getDocument({data: buf.slice(0)}).promise;
+    numPages = pdfDoc.numPages;
+    currentPage = 1;
+    edits = {};
+    filenameLabel.textContent = file.name;
+    dropzone.style.display = 'none';
+    toolbar.classList.add('show');
+    stageWrap.classList.add('show');
+    await renderPage(currentPage);
+    setMode('select');
+  }catch(err){
+    console.error(err);
+    showToast('Could not open that PDF.');
+  }finally{
+    hideSpinner();
+  }
+}
+
+document.getElementById('new-file').addEventListener('click', ()=>{
+  if(!confirm('Load a different PDF? Unsaved changes will be lost.')) return;
+  dropzone.style.display = '';
+  toolbar.classList.remove('show');
+  stageWrap.classList.remove('show');
+  fileInput.value = '';
+  pdfDoc = null; originalBytes = null; edits = {};
+});
+
+// ---------- rendering ----------
+async function renderPage(n){
+  const page = await pdfDoc.getPage(n);
+  pageViewportUnscaled = page.getViewport({scale:1});
+  const viewport = page.getViewport({scale: renderScale});
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  canvas.style.width = viewport.width+'px';
+  canvas.style.height = viewport.height+'px';
+  overlay.style.width = viewport.width+'px';
+  overlay.style.height = viewport.height+'px';
+
+  await page.render({canvasContext: ctx, viewport}).promise;
+  pageIndicator.textContent = `${n} / ${numPages}`;
+
+  overlay.innerHTML = '';
+  const pageEdits = edits[n] || {texts:[], whites:[]};
+  pageEdits.whites.forEach(w => renderWhiteEl(w));
+  pageEdits.texts.forEach(t => renderTextEl(t));
+}
+
+document.getElementById('prev-page').addEventListener('click', async ()=>{
+  if(currentPage<=1) return;
+  currentPage--;
+  await renderPage(currentPage);
+});
+document.getElementById('next-page').addEventListener('click', async ()=>{
+  if(currentPage>=numPages) return;
+  currentPage++;
+  await renderPage(currentPage);
+});
+
+// ---------- tools ----------
+function setMode(m){
+  mode = m;
+  document.getElementById('tool-select').classList.toggle('active', m==='select');
+  document.getElementById('tool-text').classList.toggle('active', m==='text');
+  document.getElementById('tool-whiteout').classList.toggle('active', m==='whiteout');
+  overlay.classList.toggle('whiteout-mode', m==='whiteout');
+  overlay.classList.toggle('select-mode', m==='select');
+}
+document.getElementById('tool-select').addEventListener('click', ()=>setMode('select'));
+document.getElementById('tool-text').addEventListener('click', ()=>setMode('text'));
+document.getElementById('tool-whiteout').addEventListener('click', ()=>setMode('whiteout'));
+
+const colorInput = document.getElementById('text-color');
+const sizeInput = document.getElementById('text-size');
+const sizeVal = document.getElementById('text-size-val');
+colorInput.addEventListener('input', ()=> textColor = colorInput.value);
+sizeInput.addEventListener('input', ()=>{
+  textSize = parseInt(sizeInput.value,10);
+  sizeVal.textContent = textSize;
+});
+
+function pageEditsFor(n){
+  if(!edits[n]) edits[n] = {texts:[], whites:[]};
+  return edits[n];
+}
+
+// ---------- overlay interaction ----------
+overlay.addEventListener('mousedown', (e)=>{
+  if(e.target !== overlay) return; // clicks on children handled separately
+  const rect = overlay.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  if(mode === 'text'){
+    const t = {id: idCounter++, x, y, width: 160, text:'', size: textSize, color: textColor};
+    pageEditsFor(currentPage).texts.push(t);
+    const el = renderTextEl(t);
+    beginEditing(el, t);
+  } else if(mode === 'whiteout'){
+    startWhiteoutDrag(e, x, y);
+  }
+});
+
+function startWhiteoutDrag(e, startX, startY){
+  const w = {id: idCounter++, x:startX, y:startY, width:1, height:1};
+  pageEditsFor(currentPage).whites.push(w);
+  const el = renderWhiteEl(w);
+  overlay.appendChild(el); // ensure below text boxes visually is fine, order doesn't matter much
+
+  function onMove(ev){
+    const rect = overlay.getBoundingClientRect();
+    const cx = ev.clientX - rect.left;
+    const cy = ev.clientY - rect.top;
+    w.x = Math.min(startX, cx);
+    w.y = Math.min(startY, cy);
+    w.width = Math.abs(cx - startX);
+    w.height = Math.abs(cy - startY);
+    updateWhiteEl(el, w);
+  }
+  function onUp(){
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    if(w.width < 4 || w.height < 4){
+      // too small, remove
+      const arr = pageEditsFor(currentPage).whites;
+      const idx = arr.indexOf(w);
+      if(idx>-1) arr.splice(idx,1);
+      el.remove();
+    }
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function renderWhiteEl(w){
+  const el = document.createElement('div');
+  el.className = 'whitebox';
+  el.dataset.id = w.id;
+  updateWhiteEl(el, w);
+
+  const del = document.createElement('div');
+  del.className = 'del-handle';
+  del.textContent = '×';
+  del.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const arr = pageEditsFor(currentPage).whites;
+    const idx = arr.findIndex(x=>x.id===w.id);
+    if(idx>-1) arr.splice(idx,1);
+    el.remove();
+  });
+  el.appendChild(del);
+
+  const resize = document.createElement('div');
+  resize.className = 'resize-handle';
+  resize.addEventListener('mousedown', (e)=>{
+    e.stopPropagation();
+    const startMouseX = e.clientX, startMouseY = e.clientY;
+    const startW = w.width, startH = w.height;
+    function onMove(ev){
+      w.width = Math.max(4, startW + (ev.clientX-startMouseX));
+      w.height = Math.max(4, startH + (ev.clientY-startMouseY));
+      updateWhiteEl(el, w);
+    }
+    function onUp(){
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+  el.appendChild(resize);
+
+  el.addEventListener('mousedown', (e)=>{
+    if(mode !== 'select') return;
+    if(e.target !== el) return;
+    e.stopPropagation();
+    const startMouseX = e.clientX, startMouseY = e.clientY;
+    const startX = w.x, startY = w.y;
+    function onMove(ev){
+      w.x = startX + (ev.clientX-startMouseX);
+      w.y = startY + (ev.clientY-startMouseY);
+      updateWhiteEl(el, w);
+    }
+    function onUp(){
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  overlay.appendChild(el);
+  return el;
+}
+function updateWhiteEl(el, w){
+  el.style.left = w.x+'px';
+  el.style.top = w.y+'px';
+  el.style.width = w.width+'px';
+  el.style.height = w.height+'px';
+}
+
+function renderTextEl(t){
+  const el = document.createElement('div');
+  el.className = 'textbox';
+  el.dataset.id = t.id;
+  el.contentEditable = 'false';
+  el.style.left = t.x+'px';
+  el.style.top = t.y+'px';
+  el.style.width = t.width+'px';
+  el.style.fontSize = t.size+'px';
+  el.style.color = t.color;
+  el.textContent = t.text;
+
+  const drag = document.createElement('div');
+  drag.className = 'drag-handle';
+  el.appendChild(drag);
+
+  const del = document.createElement('div');
+  del.className = 'del-handle';
+  del.textContent = '×';
+  del.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const arr = pageEditsFor(currentPage).texts;
+    const idx = arr.findIndex(x=>x.id===t.id);
+    if(idx>-1) arr.splice(idx,1);
+    el.remove();
+  });
+  el.appendChild(del);
+
+  el.addEventListener('dblclick', (e)=>{
+    e.stopPropagation();
+    beginEditing(el, t);
+  });
+
+  el.addEventListener('mousedown', (e)=>{
+    if(mode !== 'select') return;
+    if(el.classList.contains('editing')) return;
+    e.stopPropagation();
+    const startMouseX = e.clientX, startMouseY = e.clientY;
+    const startX = t.x, startY = t.y;
+    let moved = false;
+    function onMove(ev){
+      moved = true;
+      t.x = startX + (ev.clientX-startMouseX);
+      t.y = startY + (ev.clientY-startMouseY);
+      el.style.left = t.x+'px';
+      el.style.top = t.y+'px';
+    }
+    function onUp(){
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      if(!moved) beginEditing(el, t);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  overlay.appendChild(el);
+  return el;
+}
+
+function beginEditing(el, t){
+  el.contentEditable = 'true';
+  el.classList.add('editing');
+  el.focus();
+  // place cursor at end
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  range.collapse(false);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  function finish(){
+    el.contentEditable = 'false';
+    el.classList.remove('editing');
+    t.text = el.textContent;
+    el.removeEventListener('blur', finish);
+    if(t.text.trim() === ''){
+      const arr = pageEditsFor(currentPage).texts;
+      const idx = arr.findIndex(x=>x.id===t.id);
+      if(idx>-1) arr.splice(idx,1);
+      el.remove();
+    }
+  }
+  el.addEventListener('blur', finish);
+  el.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape'){ e.preventDefault(); el.blur(); }
+  });
+}
+
+// ---------- export ----------
+document.getElementById('download-btn').addEventListener('click', exportPdf);
+
+async function exportPdf(){
+  if(!originalBytes){ showToast('Load a PDF first.'); return; }
+  showSpinner('Building your PDF…');
+  try{
+    const { PDFDocument, rgb, StandardFonts } = PDFLib;
+    const pdfLibDoc = await PDFDocument.load(originalBytes);
+    const font = await pdfLibDoc.embedFont(StandardFonts.Helvetica);
+    const pages = pdfLibDoc.getPages();
+
+    for(const pageNumStr of Object.keys(edits)){
+      const pageNum = parseInt(pageNumStr, 10);
+      const pageData = edits[pageNum];
+      if(!pageData) continue;
+      const page = pages[pageNum - 1];
+      if(!page) continue;
+      const { width: pdfW, height: pdfH } = page.getSize();
+      const scaleFactor = renderScale; // screen px -> pdf pt: divide by this... but pdf page size vs unscaled viewport may already equal pdfW/pdfH
+      // renderScale converts pdf pt to screen px (since viewport made at scale=renderScale from a 1:1 pt viewport)
+      // so pdf_pt = screen_px / renderScale
+      const toPt = (px) => px / scaleFactor;
+
+      (pageData.whites || []).forEach(w=>{
+        const x = toPt(w.x);
+        const yTop = toPt(w.y);
+        const wpt = toPt(w.width);
+        const hpt = toPt(w.height);
+        const yBottom = pdfH - yTop - hpt;
+        page.drawRectangle({
+          x, y: yBottom, width: wpt, height: hpt,
+          color: rgb(1,1,1),
+        });
+      });
+
+      (pageData.texts || []).forEach(t=>{
+        if(!t.text) return;
+        const x = toPt(t.x);
+        const yTop = toPt(t.y);
+        const sizePt = toPt(t.size);
+        const c = hexToRgb01(t.color);
+        const lines = t.text.split('\n');
+        lines.forEach((line, i)=>{
+          const lineY = pdfH - yTop - sizePt*(i+1)*1.15 + sizePt*0.18;
+          page.drawText(line, {
+            x, y: lineY,
+            size: sizePt,
+            font,
+            color: rgb(c.r, c.g, c.b),
+          });
+        });
+      });
+    }
+
+    const outBytes = await pdfLibDoc.save();
+    const blob = new Blob([outBytes], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const baseName = (filenameLabel.textContent || 'document.pdf').replace(/\.pdf$/i,'');
+    a.href = url;
+    a.download = baseName + '-edited.pdf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Downloaded ✓');
+  }catch(err){
+    console.error(err);
+    showToast('Export failed — see console.');
+  }finally{
+    hideSpinner();
+  }
+}
+
+function hexToRgb01(hex){
+  const h = hex.replace('#','');
+  const bigint = parseInt(h,16);
+  return {
+    r: ((bigint>>16)&255)/255,
+    g: ((bigint>>8)&255)/255,
+    b: (bigint&255)/255,
+  };
+}
+</script>
+</body>
+</html>
